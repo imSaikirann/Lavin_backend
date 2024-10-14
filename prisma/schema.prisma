@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model ProductCategory {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  category     String   @unique
+  products     Product[]
+}
+
+model Product {
+  id                  String     @id @default(auto()) @map("_id") @db.ObjectId
+  productName         String
+  productDescription  String
+  images              String[]
+  variants            Variant[]
+  bestSeller          Boolean    @default(false)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  categoryId          String     @db.ObjectId
+  category            ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade) 
+
+  reviews             Review[]
+}
+
+model Variant {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  size        String?   
+  color       String  
+  stock       Int     
+  price       Float   
+  productId   String   @db.ObjectId
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Review {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  rating      Int
+  comment     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  productId   String   @db.ObjectId
+  product     Product  @relation(fields: [productId], references: [id],onDelete: Cascade)
+}
