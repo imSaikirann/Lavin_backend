@@ -15,5 +15,5 @@ app.use('/api/v1/productCatgory',ProductCatgory)
 
 
 app.listen(4000,(req,res)=>{
-    console.log("Server is started")
+    console.log("Server i started")
 })
