@@ -4,12 +4,13 @@ const express = require('express');
 const router = express.Router();
 
 router.post('/addProductCategory', async (req, res) => {
-    const { category } = req.body; 
+    const { category,allowsInternalPages } = req.body; 
     try {
        
         const data = await prisma.productCategory.create({
             data: { 
-                category 
+                category ,
+                allowsInternalPages
             }
         });
 
@@ -55,6 +56,37 @@ router.get('/getCategories', async (req, res) => {
         });
     }
 });
+
+
+router.get('/getCategory/:id', async (req, res) => {
+    const {id} = req.params
+     try {
+       
+         const data = await prisma.productCategory.findFirst({
+             where:{
+                 id : id
+             },
+             select:{
+                category:true
+             }
+         })
+ 
+       
+         res.status(200).json({
+             success: true,
+             message: "Product fetched Successfully",
+             data: data,
+         });
+     } catch (error) {
+       
+         res.status(500).json({
+             success: false,
+             message: "An error occurred while getting product",
+             error: error.message,
+         });
+     }
+ });
+ 
 
 
 module.exports = router;

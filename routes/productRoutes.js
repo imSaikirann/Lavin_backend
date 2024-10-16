@@ -18,48 +18,51 @@ const productSchema = z.object({
         message: "Offered price must be a valid number if provided.",
     }).transform((val) => (val ? parseFloat(val) : null)),
     categoryId: z.string().min(1, "Category ID is required."),
+    categoryName: z.string().min(1, "Category name is required."),
 });
 
-router.post('/addProduct',upload.array('files'), async (req, res) => {
+router.post('/addProduct', upload.array('files'), async (req, res) => {
     const parsedData = productSchema.parse(req.body);
-    const { productName,price,productDescription,offeredPrice ,  categoryId  } = parsedData
+    const { productName, price, productDescription, offeredPrice, categoryId,categoryName } = parsedData;
     const parsedPrice = parseFloat(price);
     const parsedOfferedPrice = offeredPrice ? parseFloat(offeredPrice) : null;
 
     try {
         let imageUrl = [];
 
+  
         if (req.files && req.files.length > 0) {
             for (const file of req.files) {
                 const result = await uploadToS3(file);
-                imageUrl.push(result.Location); 
-            } 
+                imageUrl.push(result.Location);
+            }
         }
-        if (!categoryId) {
-            return res.status(400).json({
-                success: false,
-                message: "Category ID is required to add a product.",
-            });
-        }
-
+    
         const pictureNames = imageUrl.map(url => {
             const parts = url.split('/');
-            return parts[parts.length - 1]; 
+            return parts[parts.length - 1];
         });
-        
+
         const data = await prisma.product.create({
-            data: { 
-                productName,price:parsedPrice,productDescription,offeredPrice:parsedOfferedPrice , categoryId,images: pictureNames
+            data: {
+                productName,
+                price: parsedPrice,
+                productDescription,
+                offeredPrice: parsedOfferedPrice,
+                categoryId,
+                images: pictureNames,
+                categoryName
             }
+           
         });
 
         res.status(201).json({
             success: true,
-            message: "Product  added successfully",
-            data: data,
+            message: "Product added successfully",
+            data
         });
     } catch (error) {
-      
+        console.error("Error adding product:", error);
         res.status(500).json({
             success: false,
             message: "An error occurred while adding the product",
@@ -68,11 +71,44 @@ router.post('/addProduct',upload.array('files'), async (req, res) => {
     }
 });
 
+
 router.get('/getProducts', async (req, res) => {
-   
+    try {
+        const data = await prisma.product.findMany({
+            include: {
+                category: {
+                    select: {
+                        category: true  // This will fetch only the category name
+                    }
+                },
+                variants: true,
+                reviews: true
+            }
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Products fetched Successfully",
+            data: data,
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "An error occurred while getting products",
+            error: error.message,
+        });
+    }
+});
+
+
+router.get('/getProduct/:id', async (req, res) => {
+   const {id} = req.params
     try {
       
-        const data = await prisma.product.findMany({
+        const data = await prisma.product.findFirst({
+            where:{
+                id : id
+            },
             include:{
                 variants:true,
                 reviews:true
@@ -82,14 +118,14 @@ router.get('/getProducts', async (req, res) => {
       
         res.status(200).json({
             success: true,
-            message: "Products fetched Successfully",
+            message: "Product fetched Successfully",
             data: data,
         });
     } catch (error) {
       
         res.status(500).json({
             success: false,
-            message: "An error occurred while getting products",
+            message: "An error occurred while getting product",
             error: error.message,
         });
     }
