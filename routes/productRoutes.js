@@ -76,11 +76,7 @@ router.get('/getProducts', async (req, res) => {
     try {
         const data = await prisma.product.findMany({
             include: {
-                category: {
-                    select: {
-                        category: true  // This will fetch only the category name
-                    }
-                },
+                
                 variants: true,
                 reviews: true
             }
