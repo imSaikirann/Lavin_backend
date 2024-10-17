@@ -28,7 +28,6 @@ model Product {
   categoryName        String
   categoryId          String     @db.ObjectId
   category            ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-
   reviews             Review[]
   internalPages       InternalPage[]
 }
