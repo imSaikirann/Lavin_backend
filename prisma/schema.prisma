@@ -36,7 +36,7 @@ model Product {
 model InternalPage {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   pageType    String
-  pageCount   Int
+  pageCount   String
   images              String[]
   productId   String   @db.ObjectId
   product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)

@@ -76,9 +76,10 @@ router.get('/getProducts', async (req, res) => {
     try {
         const data = await prisma.product.findMany({
             include: {
-                
+                internalPages:true,
                 variants: true,
                 reviews: true
+
             }
         });
 
@@ -97,7 +98,7 @@ router.get('/getProducts', async (req, res) => {
 });
 
 
-router.get('/getProduct/:id', async (req, res) => {
+router.get('/getProduct/:id' , async (req, res) => {
    const {id} = req.params
     try {
       
@@ -183,6 +184,51 @@ router.post('/addReview/:id', async (req, res) => {
         });
     }
 });
+
+router.post('/addInternalPages/:id',  upload.array('files'), async (req, res) => {
+    const { id } = req.params; 
+    const {  pageType  ,pageCount } = req.body;
+    
+    try {
+        let imageUrl = [];
+
+        if (req.files && req.files.length > 0) {
+            for (const file of req.files) {
+                const result = await uploadToS3(file);
+                imageUrl.push(result.Location);
+            }
+        }
+    
+        const pictureNames = imageUrl.map(url => {
+            const parts = url.split('/');
+            return parts[parts.length - 1];
+        });
+
+        const data = await prisma.internalPage.create({
+            data: {
+                pageType ,
+                pageCount,
+                images: pictureNames,
+                productId:id
+            }
+           
+        });
+
+        res.status(201).json({
+            success: true,
+            message: "Book internal pages  added successfully",
+            data
+        });
+    } catch (error) {
+        console.error("Error adding product:", error);
+        res.status(500).json({
+            success: false,
+            message: "An error occurred while adding the book pages",
+            error: error.message,
+        });
+    }
+});
+
 
 
 module.exports = router;
