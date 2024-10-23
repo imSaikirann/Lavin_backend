@@ -76,3 +76,12 @@ model OTP {
   userId    String   @db.ObjectId
   expiresAt DateTime
 }
+
+
+model TemporaryAccount{
+  id String   @id @default(auto()) @map("_id") @db.ObjectId
+  email String @unique
+  firstName String
+  lastName String
+ 
+}

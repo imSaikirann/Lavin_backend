@@ -2,7 +2,8 @@ const nodemailer = require('nodemailer');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const crypto = require('crypto');
-const { date } = require('zod');
+
+const {generateToken,generateRefreshToken} = require('../services/tokenServices')
 
 
 const transporter = nodemailer.createTransport({
@@ -76,8 +77,16 @@ const verifyEmail = async (email, otp) => {
           where: { email },
           data: { isVerified: true },
         });
-    
-        return { message: 'Email verified successfully', verified: true };
+
+        const accessToken = generateToken(user)
+
+        const refreshToken = generateRefreshToken(user)
+        return { message: 'Email verified successfully', verified: true,
+            accessToken,
+            refreshToken
+         };
+
+         
       } else if (latestOTP.expiresAt <= new Date()) {
         return { message: 'OTP expired', verified: false };
       } else {
