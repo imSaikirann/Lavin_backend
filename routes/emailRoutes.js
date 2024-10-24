@@ -1,36 +1,84 @@
 const express = require('express');
 const router = express.Router();
-const { sendEmail ,verifyEmail} = require('../services/emailServices'); 
+const { sendEmail, verifyEmail } = require('../services/emailServices');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
-
+// Send OTP
 router.post('/auth/send-otp', async (req, res) => {
     const { email } = req.body;
-  
+
     try {
-      const response = await sendEmail(email);
-      res.status(200).json(response);
+        const response = await sendEmail(email);
+        res.status(200).json({ response });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Error sending OTP' });
+        console.error('Error sending OTP:', error);
+        res.status(500).json({ message: 'Error sending OTP' });
     }
-  });
+});
 
-
-router.post('/auth/verifyOTP', async (req, res) => {
-    const { email,code } = req.body;
-  
+// Verify OTP
+router.post('/auth/verify-otp', async (req, res) => {
+    const { email, code, firstName, lastName, phoneNumber, address, street, city, state, country, pincode } = req.body;
+    console.log(req.body)
     try {
-      const response = await verifyEmail(email,code);
-      if (response.verified) {
-        res.status(200).json(response);
-      } else {
-        res.status(400).json(response);
-      }
+        const response = await verifyEmail(email, code);
+
+        if (response.verified) {
+          
+            const existedUser = await prisma.user.findFirst({ where: { email } });
+
+            if (existedUser) {
+              // Delete any existing OTPs for the user
+              await prisma.oTP.deleteMany({
+                where: { email },
+              });
+            
+              // Fetch the user along with their order details
+              const userWithOrders = await prisma.user.findUnique({
+                where: { email },
+                include: {
+                  orders: true, 
+                },
+              });
+            
+              return res.status(200).json({ message: 'User already exists', data: userWithOrders });
+            }
+            
+        
+            const user = await prisma.user.create({
+                data: {
+                    email,
+                    firstName,
+                    lastName,
+                    phoneNumber,
+                    address,
+                    street,
+                    city,
+                    state,
+                    country,
+                    pincode,
+                    isVerified: true,
+                    isTemporary: true,
+                },
+            });
+
+          
+            await prisma.oTP.deleteMany({
+                where: { email },
+            });
+            await prisma.userEmailVerification.delete({
+                where: { email },
+            });
+
+            return res.status(201).json({ message: 'User created successfully', user });
+        } else {
+            return res.status(400).json({ message: response.message });
+        }
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Error verifying OTP' });
+        console.error('Error verifying OTP and creating user:', error);
+        return res.status(500).json({ message: 'Error verifying OTP and creating user' });
     }
-  });
+});
 
-
-module.exports = router
+module.exports = router;

@@ -17,12 +17,12 @@ const transporter = nodemailer.createTransport({
 const generateOTP = () => crypto.randomInt(100000, 999999).toString()
 
 const sendEmail = async (email) => {
-    let user = await prisma.user.findUnique({
-        where: { email },
+    let user = await prisma.userEmailVerification.findUnique({
+        where: { email }
     })
 
     if (!user) {
-        user = await prisma.user.create({
+        user = await prisma.userEmailVerification.create({
             data: {
                 email,
             },
@@ -36,6 +36,7 @@ const sendEmail = async (email) => {
         data: {
             code: otp,
             userId: user.id,
+            email:email,
             expiresAt,
         },
     });
@@ -53,7 +54,7 @@ const sendEmail = async (email) => {
 
 
 const verifyEmail = async (email, otp) => {
-    const user = await prisma.user.findUnique({
+    const user = await prisma.userEmailVerification.findUnique({
         where: { email },
         include: {
             otps: true
@@ -70,21 +71,11 @@ const verifyEmail = async (email, otp) => {
         return { message: 'OTP not found', verified: false };
     }
 
-
-    if (latestOTP.code === otp && latestOTP.expiresAt > new Date()) {
-        // Mark the user as verified
-        await prisma.user.update({
-          where: { email },
-          data: { isVerified: true },
-        });
-
-        const accessToken = generateToken(user)
-
-        const refreshToken = generateRefreshToken(user)
-        return { message: 'Email verified successfully', verified: true,
-            accessToken,
-            refreshToken
-         };
+    console.log(latestOTP)
+    if (latestOTP.code.toString() === otp && latestOTP.expiresAt > new Date()) {
+    
+     
+        return { message: 'Email verified successfully', verified: true};
 
          
       } else if (latestOTP.expiresAt <= new Date()) {

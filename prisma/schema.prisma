@@ -57,31 +57,71 @@ model Review {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   productId   String   @db.ObjectId
-  product     Product  @relation(fields: [productId], references: [id],onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
-
+model UserEmailVerification{
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  email        String   @unique
+  otps         OTP[]
+}
 model User {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  email     String   @unique
-  isVerified Boolean  @default(false)
-  createdAt DateTime @default(now())
-  otps      OTP[]
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  email        String   @unique
+  password     String?
+  firstName    String?
+  lastName     String?
+  phoneNumber  String?
+  isTemporary  Boolean  @default(true)
+  isVerified   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  
+  // Address details
+  address      String?
+  street       String?
+  city         String?
+  state        String?
+  country      String?
+  pincode      String?
+
+  // Relations
+
+  orders       Order[]
+  payments     Payment[] 
 }
 
 model OTP {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  code      String
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String   @db.ObjectId
-  expiresAt DateTime
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  code       String
+  email      String
+  userverify UserEmailVerification @relation(fields: [userId], references: [id])
+  userId     String   @db.ObjectId
+  expiresAt  DateTime
+  createdAt  DateTime @default(now()) 
 }
 
 
-model TemporaryAccount{
-  id String   @id @default(auto()) @map("_id") @db.ObjectId
-  email String @unique
-  firstName String
-  lastName String
- 
+model Order {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  status           String
+  totalAmount      Float
+  user             User     @relation(fields: [userId], references: [id])
+  userId           String   @db.ObjectId
+  payments         Payment[] 
+}
+
+model Payment {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  paymentId   String   @unique  
+  orderId     String   @db.ObjectId 
+  amount      Float   
+  currency    String 
+  status      String  
+  createdAt   DateTime @default(now()) 
+  updatedAt   DateTime @updatedAt
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade) 
+  userId      String   @db.ObjectId 
 }
