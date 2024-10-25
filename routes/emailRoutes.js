@@ -18,34 +18,33 @@ router.post('/auth/send-otp', async (req, res) => {
 });
 
 // Verify OTP
+
 router.post('/auth/verify-otp', async (req, res) => {
     const { email, code, firstName, lastName, phoneNumber, address, street, city, state, country, pincode } = req.body;
-    console.log(req.body)
+
+    console.log("Received data for OTP verification:", req.body); // Add this line for logging
+
     try {
         const response = await verifyEmail(email, code);
 
         if (response.verified) {
-          
             const existedUser = await prisma.user.findFirst({ where: { email } });
 
             if (existedUser) {
-              // Delete any existing OTPs for the user
-              await prisma.oTP.deleteMany({
-                where: { email },
-              });
-            
-              // Fetch the user along with their order details
-              const userWithOrders = await prisma.user.findUnique({
-                where: { email },
-                include: {
-                  orders: true, 
-                },
-              });
-            
-              return res.status(200).json({ message: 'User already exists', data: userWithOrders });
+                await prisma.oTP.deleteMany({
+                    where: { email },
+                });
+                
+                const userWithOrders = await prisma.user.findUnique({
+                    where: { email },
+                    include: {
+                        orders: true, 
+                    },
+                });
+                
+                return res.status(200).json({ message: 'User already exists', data: userWithOrders });
             }
-            
-        
+
             const user = await prisma.user.create({
                 data: {
                     email,
@@ -63,7 +62,6 @@ router.post('/auth/verify-otp', async (req, res) => {
                 },
             });
 
-          
             await prisma.oTP.deleteMany({
                 where: { email },
             });
@@ -73,6 +71,7 @@ router.post('/auth/verify-otp', async (req, res) => {
 
             return res.status(201).json({ message: 'User created successfully', user });
         } else {
+            console.error("OTP verification failed:", response.message); 
             return res.status(400).json({ message: response.message });
         }
     } catch (error) {
@@ -80,5 +79,6 @@ router.post('/auth/verify-otp', async (req, res) => {
         return res.status(500).json({ message: 'Error verifying OTP and creating user' });
     }
 });
+
 
 module.exports = router;
