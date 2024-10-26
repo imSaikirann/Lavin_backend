@@ -3,8 +3,6 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const crypto = require('crypto');
 
-
-
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -13,78 +11,50 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-const generateOTP = () => crypto.randomInt(100000, 999999).toString()
+const generateOTP = () => crypto.randomInt(100000, 999999).toString();
 
 const sendEmail = async (email) => {
-    let user = await prisma.userEmailVerification.findUnique({
-        where: { email }
-    })
-
-    if (!user) {
-        user = await prisma.userEmailVerification.create({
-            data: {
-                email,
-            },
-        });
-    }
-
-    const otp = generateOTP();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
-
-    await prisma.oTP.create({
-        data: {
-            code: otp,
-            userId: user.id,
-            email:email,
-            expiresAt,
-        },
+    let userVerification = await prisma.userEmailVerification.upsert({
+        where: { email },
+        create: { email },
+        update: {}
     });
 
-    // Send the OTP via email
-    const mailOptions = {
+    const otp = generateOTP();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+    await prisma.oTP.create({
+        data: { code: otp, userId: userVerification.id, email, expiresAt },
+    });
+
+    await transporter.sendMail({
         from: process.env.EMAIL,
         to: email,
         subject: 'Your OTP Code for Verification',
         text: `Your OTP code is ${otp}. It is valid for 5 minutes.`,
-    };
-    await transporter.sendMail(mailOptions);
+    });
+
     return { message: 'OTP sent successfully' };
-}
+};
 
-  
 const verifyEmail = async (email, otp) => {
-  
     const user = await prisma.userEmailVerification.findUnique({
-        where: {
-            email: email  
-          },
-        include: {
-            otps: true
-        }
-    })
+        where: { email },
+        include: { otps: true },
+    });
 
-    if (!user) {
-        return { message: "User not Found", verified: false }
+    if (!user || !user.otps.length) {
+        return { message: 'User not found or OTP does not exist', verified: false };
     }
 
-    const latestOTP = user.otps[user.otps.length - 1]
-
-    if (!latestOTP) {
-        return { message: 'OTP not found', verified: false };
-    }
-
-    console.log(latestOTP)
-    if (latestOTP.code.toString() === otp && latestOTP.expiresAt > new Date()) {
-    
-     
-        return { message: 'Email verified successfully', verified: true};
-
-         
-      } else if (latestOTP.expiresAt <= new Date()) {
+    const latestOTP = user.otps[user.otps.length - 1];
+    if (latestOTP.code === otp && latestOTP.expiresAt > new Date()) {
+        return { message: 'Email verified successfully', verified: true };
+    } else if (latestOTP.expiresAt <= new Date()) {
         return { message: 'OTP expired', verified: false };
-      } else {
+    } else {
         return { message: 'Invalid OTP', verified: false };
-      }
-}
+    }
+};
 
-module.exports = { sendEmail,verifyEmail }
+module.exports = { sendEmail, verifyEmail };
