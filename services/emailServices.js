@@ -3,7 +3,6 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const crypto = require('crypto');
 
-const {generateToken,generateRefreshToken} = require('../services/tokenServices')
 
 
 const transporter = nodemailer.createTransport({
@@ -52,10 +51,13 @@ const sendEmail = async (email) => {
     return { message: 'OTP sent successfully' };
 }
 
-
+  
 const verifyEmail = async (email, otp) => {
+  
     const user = await prisma.userEmailVerification.findUnique({
-        where: { email },
+        where: {
+            email: email  
+          },
         include: {
             otps: true
         }
