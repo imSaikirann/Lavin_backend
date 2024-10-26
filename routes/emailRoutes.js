@@ -27,7 +27,9 @@ router.post('/auth/verify-otp', async (req, res) => {
             
             if (user) {
                 await prisma.oTP.deleteMany({ where: { email } });
-                return res.status(200).json({ message: 'User already exists', user });
+                const accessToken = generateToken(newUser);
+            const refreshToken = generateRefreshToken(newUser);
+                return res.status(200).json({ message: 'User already exists', user,accessToken,refreshToken });
             }
             
             const newUser = await prisma.user.create({
