@@ -24,7 +24,11 @@ router.post('/auth/verify-otp', async (req, res) => {
     try {
         const response = await verifyEmail(email, code);
         if (response.verified) {
-            let user = await prisma.user.findUnique({ where: { email } });
+            let user = await prisma.user.findUnique({ where: { email },
+            
+            include:{
+                orders:true
+            }});
             
             if (user) {
                 await prisma.oTP.deleteMany({ where: { email } });
