@@ -38,6 +38,7 @@ const sendEmail = async (email) => {
 };
 
 const verifyEmail = async (email, otp) => {
+    console.log(otp)
     const user = await prisma.userEmailVerification.findUnique({
         where: { email },
         include: { otps: true },
@@ -48,6 +49,7 @@ const verifyEmail = async (email, otp) => {
     }
 
     const latestOTP = user.otps[user.otps.length - 1];
+    console.log(latestOTP)
     if (latestOTP.code === otp && latestOTP.expiresAt > new Date()) {
         return { message: 'Email verified successfully', verified: true };
     } else if (latestOTP.expiresAt <= new Date()) {

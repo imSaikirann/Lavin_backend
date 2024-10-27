@@ -4,6 +4,8 @@ const ProductCatgory = require('./routes/productCategoryRoutes')
 const BookProducts = require('./routes/BookRoutes')
 const EmailSerices = require('./routes/emailRoutes')
 const Payment = require('./routes/payment')
+const User = require('./routes/UserRoutes')
+
 
 const app = express()
 
@@ -17,6 +19,8 @@ app.use('/api/v1/bookProducts',BookProducts)
 app.use('/api/v1/productCatgory',ProductCatgory)
 app.use('/api/v1',EmailSerices)
 app.use('/api/v1/payments',Payment)
+app.use('/api/v1/user',User)
+
 
 
 
