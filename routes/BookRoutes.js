@@ -4,7 +4,7 @@ const express = require('express');
 const router = express.Router();
 const { uploadToS3 } = require('../services/s3Services');
 const multer = require('multer');
-const z = require('zod')
+const z = require('zod') 
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -21,27 +21,21 @@ const productSchema = z.object({
     categoryName: z.string().min(1, "Category name is required."),
 });
 
-router.post('/addProduct', upload.array('files'), async (req, res) => {
+router.post('/addProduct', upload.array('files'), async (req, res) => { 
     const parsedData = productSchema.parse(req.body);
-    const { productName, price, productDescription, offeredPrice, categoryId,categoryName } = parsedData;
+    const { productName, price, productDescription, offeredPrice, categoryId, categoryName } = parsedData;
     const parsedPrice = parseFloat(price);
     const parsedOfferedPrice = offeredPrice ? parseFloat(offeredPrice) : null;
 
     try {
         let imageUrl = [];
 
-  
         if (req.files && req.files.length > 0) {
             for (const file of req.files) {
                 const result = await uploadToS3(file);
-                imageUrl.push(result.Location);
+                imageUrl.push(result.Location); 
             }
         }
-    
-        const pictureNames = imageUrl.map(url => {
-            const parts = url.split('/');
-            return parts[parts.length - 1];
-        });
 
         const data = await prisma.product.create({
             data: {
@@ -50,10 +44,9 @@ router.post('/addProduct', upload.array('files'), async (req, res) => {
                 productDescription,
                 offeredPrice: parsedOfferedPrice,
                 categoryId,
-                images: pictureNames,
+                images: imageUrl,  
                 categoryName
             }
-           
         });
 
         res.status(201).json({
