@@ -20,25 +20,14 @@ router.post('/auth/send-otp', async (req, res) => {
 
 router.post('/auth/verify-otp', async (req, res) => {
     const { email, code, firstName, lastName, phoneNumber, address, street, city, state, country, pincode } = req.body;
-    console.log(req.body)
+
     try {
         const response = await verifyEmail(email, code);
         if (response.verified) {
-            let user = await prisma.user.findUnique({ where: { email },
-            
-            include:{
-                orders:true
-            }});
-            
-            if (user) {
-                await prisma.oTP.deleteMany({ where: { email } });
-                const accessToken = generateToken(user);
-            const refreshToken = generateRefreshToken(user);
-                return res.status(200).json({ message: 'User already exists', user,accessToken,refreshToken });
-            }
-            else
-            {
-                const user = await prisma.user.create({
+            let user = await prisma.user.findUnique({ where: { email }, include: { orders: true } });
+
+            if (!user) {
+                user = await prisma.user.create({
                     data: {
                         email,
                         firstName,
@@ -54,16 +43,26 @@ router.post('/auth/verify-otp', async (req, res) => {
                         isTemporary: true,
                     },
                 });
-                
-                await prisma.oTP.deleteMany({ where: { email } });
-                await prisma.userEmailVerification.delete({ where: { email } });
-    
-                const accessToken = generateToken(user);
-                const refreshToken = generateRefreshToken(user);
-                res.status(201).json({ message: 'User created successfully', user , accessToken, refreshToken });
             }
+
+            await prisma.oTP.deleteMany({ where: { email } });
+            await prisma.userEmailVerification.delete({ where: { email } });
+
+            const accessToken = generateToken(user);
+            const refreshToken = generateRefreshToken(user);
+
+            res.cookie('refreshToken', refreshToken, {
+                httpOnly: true,
+                secure: false, // Make sure this is false for local development
+                sameSite: 'Lax', // Allows sending cookies across different domains on localhost
+                maxAge: 24 * 60 * 60 * 1000 // Cookie expiration time
+            });
             
-           
+            res.status(201).json({
+                message: user ? 'User already exists' : 'User created successfully',
+                user,
+                accessToken
+            });
         } else {
             res.status(400).json({ message: response.message });
         }
@@ -72,5 +71,6 @@ router.post('/auth/verify-otp', async (req, res) => {
         res.status(500).json({ message: 'Error verifying OTP and creating user', error: error.message });
     }
 });
+
 
 module.exports = router;
