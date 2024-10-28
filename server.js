@@ -13,9 +13,21 @@ app.use(cookieParser());
 
 //middleware
 app.use(express.json())
+const allowedOrigins = [
+    'http://localhost:5173',
+    'https://lavin-frontend-16df.vercel.app'
+];
+
 app.use(cors({
-    origin: 'http://localhost:5173', // Adjust this to your frontend's URL
-    credentials: true 
+    origin: function (origin, callback) {
+        // Check if the origin is in the allowedOrigins array or if it’s undefined (for non-origin requests like mobile apps or Postman)
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
 }));
 
 //routes 
