@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
 
-// Main authentication middleware
 const authenticateUser = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
@@ -12,28 +11,25 @@ const authenticateUser = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;  
-    next(); 
+    req.user = decoded;
+    next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
- 
       return refreshToken(req, res, next);
     }
     return res.status(403).json({ error: 'Token is not valid' });
   }
 };
 
-// Refresh token middleware
 const refreshToken = (req, res, next) => {
   const refreshToken = req.cookies.refreshToken;
-
+  console.log(refreshToken)
   if (!refreshToken) {
     return res.status(401).json({ error: 'No refresh token provided' });
   }
 
   try {
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-
 
     const newAccessToken = jwt.sign(
       { userId: decoded.userId, email: decoded.email },
@@ -47,22 +43,19 @@ const refreshToken = (req, res, next) => {
       { expiresIn: '7d' }
     );
 
-
     res.setHeader('Authorization', `Bearer ${newAccessToken}`);
-    res.cookie('refreshToken', refreshToken, {
+    res.cookie('refreshToken', newRefreshToken, {
       httpOnly: true,
-      secure: false, // Make sure this is false for local development
-      sameSite: 'Lax', // Allows sending cookies across different domains on localhost
-      maxAge: 24 * 60 * 60 * 1000 // Cookie expiration time
-  });
-  
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
 
-
-    req.user = decoded; 
+    req.user = decoded;
     next();
   } catch (error) {
     return res.status(403).json({ error: 'Refresh token is not valid' });
   }
 };
 
-module.exports =  authenticateUser;
+module.exports = authenticateUser;

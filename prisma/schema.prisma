@@ -8,120 +8,143 @@ datasource db {
 }
 
 model ProductCategory {
-  id                String   @id @default(auto()) @map("_id") @db.ObjectId
-  category          String   @unique
-  allowsInternalPages Boolean @default(false) 
-  products          Product[]
+  id                  String    @id @default(auto()) @map("_id") @db.ObjectId
+  category            String    @unique
+  allowsInternalPages Boolean   @default(false)
+  products            Product[]
 }
 
 model Product {
-  id                  String     @id @default(auto()) @map("_id") @db.ObjectId
-  productName         String
-  productDescription  String
-  price               Float      
-  offeredPrice        Float?    
-  images              String[]
-  variants            Variant[]
-  bestSeller          Boolean    @default(false)
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
-  categoryName        String
-  categoryId          String     @db.ObjectId
-  category            ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  reviews             Review[]
-  internalPages       InternalPage[]
+  id                 String          @id @default(auto()) @map("_id") @db.ObjectId
+  productName        String
+  productDescription String
+  price              Float
+  offeredPrice       Float?
+  images             String[]
+  variants           Variant[]
+  bestSeller         Boolean         @default(false)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  categoryName       String
+  categoryId         String          @db.ObjectId
+  category           ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  reviews            Review[]
+  internalPages      InternalPage[]
 }
 
 model InternalPage {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  pageType    String
-  pageCount   String
-  images              String[]
-  productId   String   @db.ObjectId
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  pageType  String
+  pageCount String
+  images    String[]
+  productId String   @db.ObjectId
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Variant {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  size        String?   
-  color       String  
-  stock       Int     
-  productId   String   @db.ObjectId
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  size      String?
+  color     String
+  stock     Int
+  productId String  @db.ObjectId
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Review {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  rating      Int
-  comment     String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  productId   String   @db.ObjectId
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  rating    Int
+  comment   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  productId String   @db.ObjectId
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
-model UserEmailVerification{
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  email        String   @unique
-  otps         OTP[]
+model UserEmailVerification {
+  id    String @id @default(auto()) @map("_id") @db.ObjectId
+  email String @unique
+  otps  OTP[]
 }
+
 model User {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  email        String   @unique
-  password     String?
-  firstName    String?
-  lastName     String?
-  phoneNumber  String?
-  isTemporary  Boolean  @default(true)
-  isVerified   Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  email       String   @unique
+  password    String?
+  firstName   String?
+  lastName    String?
+  phoneNumber String?
+  isTemporary Boolean  @default(true)
+  isVerified  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
   // Address details
-  address      String?
-  street       String?
-  city         String?
-  state        String?
-  country      String?
-  pincode      String?
+  address String?
+  street  String?
+  city    String?
+  state   String?
+  country String?
+  pincode String?
 
   // Relations
-
-  orders       Order[]
-  payments     Payment[] 
+  cart     Cart[]
+  orders   Order[]
+  payments Payment[]
 }
 
 model OTP {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  id         String                @id @default(auto()) @map("_id") @db.ObjectId
   code       String
   email      String
   userverify UserEmailVerification @relation(fields: [userId], references: [id])
-  userId     String   @db.ObjectId
+  userId     String                @db.ObjectId
   expiresAt  DateTime
-  createdAt  DateTime @default(now()) 
+  createdAt  DateTime              @default(now())
 }
 
-
 model Order {
-  id               String   @id @default(auto()) @map("_id") @db.ObjectId
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  status           String
-  totalAmount      Float
-  user             User     @relation(fields: [userId], references: [id])
-  userId           String   @db.ObjectId
-  payments         Payment[] 
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  status      String
+  totalAmount Float
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String    @db.ObjectId
+  payments    Payment[]
 }
 
 model Payment {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  paymentId   String   @unique  
-  orderId     String   @db.ObjectId 
-  amount      Float   
-  currency    String 
-  status      String  
-  createdAt   DateTime @default(now()) 
-  updatedAt   DateTime @updatedAt
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade) 
-  userId      String   @db.ObjectId 
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  paymentId String   @unique
+  orderId   String   @db.ObjectId
+  amount    Float
+  currency  String
+  status    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @db.ObjectId
+}
+
+model Cart {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String     @db.ObjectId
+  user      User       @relation(fields: [userId], references: [id]) 
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+
+
+model CartItem {
+ id           String @id @default(auto()) @map("_id") @db.ObjectId
+  cartId       String @db.ObjectId
+  cart         Cart   @relation(fields: [cartId], references: [id])
+  productId    String
+  variant      Json
+  variantIndex Int?
+  quantity     Int
+  productPrice Float
+  variantImage String?
 }

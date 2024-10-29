@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { sendEmail, verifyEmail } = require('../services/emailServices');
+
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { generateToken, generateRefreshToken } = require('../services/tokenServices');
+const CreateCartUser = require('../routes/cartRoutes');
 
 // Send OTP
 router.post('/auth/send-otp', async (req, res) => {
@@ -45,6 +47,8 @@ router.post('/auth/verify-otp', async (req, res) => {
                 });
             }
 
+          
+
             await prisma.oTP.deleteMany({ where: { email } });
             await prisma.userEmailVerification.delete({ where: { email } });
 
@@ -53,16 +57,18 @@ router.post('/auth/verify-otp', async (req, res) => {
 
             res.cookie('refreshToken', refreshToken, {
                 httpOnly: true,
-                secure: false, // Make sure this is false for local development
-                sameSite: 'Lax', // Allows sending cookies across different domains on localhost
-                maxAge: 24 * 60 * 60 * 1000 // Cookie expiration time
+                secure: false, 
+                sameSite: 'Lax', 
+                maxAge: 24 * 60 * 60 * 1000 
             });
             
             res.status(201).json({
                 message: user ? 'User already exists' : 'User created successfully',
                 user,
                 accessToken
+
             });
+           
         } else {
             res.status(400).json({ message: response.message });
         }
