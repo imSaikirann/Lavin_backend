@@ -1,28 +1,27 @@
-const express = require('express')
-const cors = require('cors')
+const express = require('express');
+const cors = require('cors');
 const cookieParser = require('cookie-parser');
-const ProductCatgory = require('./routes/productCategoryRoutes')
-const BookProducts = require('./routes/BookRoutes')
-const EmailSerices = require('./routes/emailRoutes')
-const Payment = require('./routes/payment')
-const User = require('./routes/UserRoutes')
-const userCart = require('./routes/cartRoutes')
+const productCategoryRoutes = require('./routes/productCategoryRoutes');
+const bookProductsRoutes = require('./routes/BookRoutes');
+const emailServicesRoutes = require('./routes/emailRoutes');
+const paymentRoutes = require('./routes/payment');
+const userRoutes = require('./routes/UserRoutes');
+const userCartRoutes = require('./routes/cartRoutes');
 
-
-
-const app = express()
+const app = express();
 app.use(cookieParser());
 
-//middleware
-app.use(express.json()) 
+// Middleware
+app.use(express.json());
 const allowedOrigins = [
-    'http://localhost:5173',
-    'https://lavin-frontend-16df.vercel.app'
+    'http://localhost:5173', 
+    'https://lavin-frontend-16df.vercel.app', 
+    'https://lavin.in' 
 ];
 
 app.use(cors({
     origin: function (origin, callback) {
-   
+
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
@@ -32,19 +31,22 @@ app.use(cors({
     credentials: true
 }));
 
-//routes 
-app.use('/api/v1/bookProducts',BookProducts) 
-app.use('/api/v1/productCatgory',ProductCatgory)
-app.use('/api/v1',EmailSerices)
-app.use('/api/v1/payments',Payment)
-app.use('/api/v1/user',User)
-app.use('/api/v1/userCart', userCart)
+// Routes
+app.use('/api/v1/bookProducts', bookProductsRoutes); 
+app.use('/api/v1/productCategory', productCategoryRoutes);
+app.use('/api/v1', emailServicesRoutes);
+app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/user', userRoutes);
+app.use('/api/v1/userCart', userCartRoutes);
 
 
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send('Something broke!');
+});
 
 
-
-
-app.listen(4000,(req,res)=>{
-    console.log("Server i started")
-})
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
