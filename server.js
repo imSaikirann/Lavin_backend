@@ -28,12 +28,12 @@ app.use(cors({
         } else {
             callback(new Error('Not allowed by CORS'));
         }
-    },
+    }, 
     credentials: true
 }));
 
 //routes 
-app.use('/api/v1/bookProducts',BookProducts)
+app.use('/api/v1/bookProducts',BookProducts) 
 app.use('/api/v1/productCatgory',ProductCatgory)
 app.use('/api/v1',EmailSerices)
 app.use('/api/v1/payments',Payment)
