@@ -13,8 +13,11 @@ const authenticateUser = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET); 
     req.user = decoded;
+    console.log(decoded)
+    console.log(req.user)
+
     const userId = decoded.id 
-    next();
+    next(); 
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
       return refreshToken(req, res, next);

@@ -7,6 +7,8 @@ const emailServicesRoutes = require('./routes/emailRoutes');
 const paymentRoutes = require('./routes/payment');
 const userRoutes = require('./routes/UserRoutes');
 const userCartRoutes = require('./routes/cartRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+
 
 const app = express();
 app.use(cookieParser());
@@ -38,6 +40,8 @@ app.use('/api/v1', emailServicesRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/user', userRoutes);
 app.use('/api/v1/userCart', userCartRoutes);
+app.use('/api/v1/orders', orderRoutes);
+
 
 
 app.use((err, req, res, next) => {

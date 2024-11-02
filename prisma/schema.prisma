@@ -101,20 +101,32 @@ model OTP {
 }
 
 model Order {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
   status      String
   address     Json
-  payment     Boolean  @default(false)
+  orderItems  OrderItem[] 
+  payment     Boolean     @default(false)
   totalAmount Float
-  user        User     @relation(fields: [userId], references: [id])
-  userId      String   @db.ObjectId
-  createdAt   DateTime @default(now())
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String      @db.ObjectId
+  createdAt   DateTime    @default(now())
+}
+
+model OrderItem {
+  id           String      @id @default(auto()) @map("_id") @db.ObjectId
+  orderId      String      @db.ObjectId 
+  order        Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    String      @db.ObjectId 
+  variant      Json       
+  quantity     Int
+  productPrice Float
+  variantImage String?
 }
 
 model Cart {
   id        String     @id @default(auto()) @map("_id") @db.ObjectId
   userId    String     @db.ObjectId
-  user      User       @relation(fields: [userId], references: [id])
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   items     CartItem[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
@@ -123,7 +135,7 @@ model Cart {
 model CartItem {
   id           String  @id @default(auto()) @map("_id") @db.ObjectId
   cartId       String  @db.ObjectId
-  cart         Cart    @relation(fields: [cartId], references: [id])
+  cart         Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
   productId    String
   variant      Json
   variantIndex Int?

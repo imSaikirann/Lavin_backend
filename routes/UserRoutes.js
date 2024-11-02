@@ -86,7 +86,13 @@ router.get('/profile', authenticateUser, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { email: req.user.email },
-      include: { orders: true },
+      include: {
+        orders: {
+          include: {
+            orderItems: true, // Include order items for each order
+          },
+        },
+      },
     });
     res.status(200).json(user);
   } catch (error) {
@@ -94,5 +100,6 @@ router.get('/profile', authenticateUser, async (req, res) => {
     res.status(500).json({ message: 'Error getting user profile' });
   }
 });
+
 
 module.exports = router;
