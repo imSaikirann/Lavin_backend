@@ -4,7 +4,7 @@ const { sendEmail, verifyEmail } = require('../services/emailServices');
 
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { generateToken, generateRefreshToken } = require('../services/tokenServices');
+const { generateToken } = require('../services/tokenServices');
 const CreateCartUser = require('../routes/cartRoutes');
 
 // Send OTP
@@ -53,14 +53,8 @@ router.post('/auth/verify-otp', async (req, res) => {
             await prisma.userEmailVerification.delete({ where: { email } });
 
             const accessToken = generateToken(user);
-            const refreshToken = generateRefreshToken(user);
 
-            res.cookie('refreshToken', refreshToken, {
-                httpOnly: true,
-                secure: false, 
-                sameSite: 'Lax', 
-                maxAge: 24 * 60 * 60 * 1000 
-            });
+           
             
             res.status(201).json({
                 message: user ? 'User already exists' : 'User created successfully',

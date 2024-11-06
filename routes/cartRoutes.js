@@ -9,6 +9,7 @@ const prisma = new PrismaClient();
 router.post('/cart/sync', authenticateUser, async (req, res) => {
     const userId = req.user.id;
     const { localCartItems } = req.body;
+    console.log(localCartItems)
 
 
     try {
@@ -52,7 +53,7 @@ router.post('/cart/sync', authenticateUser, async (req, res) => {
                         cartId: cart.id,
                         productId,
                         variant,
-                        variantIndex,
+                        variantIndex, 
                         quantity,
                         productPrice,
                         variantImage,
@@ -103,7 +104,7 @@ router.delete('/cart/removeProduct', authenticateUser, async (req, res) => {
 });
 
 router.post('/cart/addProduct', authenticateUser, async (req, res) => {
-    const userId = req.user.userId;  // Make sure `req.user.userId` contains the correct user ID
+    const userId = req.user.userId;  
     const { productId, variant, variantIndex, quantity, productPrice, variantImage } = req.body;
 
     try {
