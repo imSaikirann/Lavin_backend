@@ -53,7 +53,7 @@ router.post('/buy-now', authenticateUser, async (req, res) => {
         res.status(201).json(order);
     } catch (error) {
         console.error('Error placing order:', error);
-        res.status(500).json({ error: 'An error occurred while placing the order.' });
+        res.status(500).json({ error });
     }
 });
 
