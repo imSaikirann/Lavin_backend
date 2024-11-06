@@ -24,53 +24,57 @@ router.post('/auth/verify-otp', async (req, res) => {
     const { email, code, firstName, lastName, phoneNumber, address, street, city, state, country, pincode } = req.body;
 
     try {
+        // Verify the OTP
         const response = await verifyEmail(email, code);
-        if (response.verified) {
-            let user = await prisma.user.findUnique({ where: { email }, include: { orders: true } });
-
-            if (!user) {
-                user = await prisma.user.create({
-                    data: {
-                        email,
-                        firstName,
-                        lastName,
-                        phoneNumber,
-                        address,
-                        street,
-                        city,
-                        state,
-                        country,
-                        pincode,
-                        isVerified: true,
-                        isTemporary: true,
-                    },
-                });
-            }
-
-          
-
-            await prisma.oTP.deleteMany({ where: { email } });
-            await prisma.userEmailVerification.delete({ where: { email } });
-
-            const accessToken = generateToken(user);
-
-           
-            
-            res.status(201).json({
-                message: user ? 'User already exists' : 'User created successfully',
-                user,
-                accessToken
-
-            });
-           
-        } else {
-            res.status(400).json({ message: response.message });
+        if (!response.verified) {
+            return res.status(400).json({ message: response.message });
         }
+
+        // Check if the user already exists
+        let user = await prisma.user.findUnique({
+            where: { email },
+            include: { orders: true }
+        });
+
+        if (!user) {
+            // Create the user if not found
+            user = await prisma.user.create({
+                data: {
+                    email,
+                    firstName,
+                    lastName,
+                    phoneNumber,
+                    address,
+                    street,
+                    city,
+                    state,
+                    country,
+                    pincode,
+                    isVerified: true,
+                    isTemporary: true,
+                },
+            });
+        }
+
+        // Clean up OTP and verification records
+        await prisma.oTP.deleteMany({ where: { email } });
+        await prisma.userEmailVerification.delete({ where: { email } });
+
+        // Generate the access token
+        const accessToken = generateToken(user);
+
+        // Respond with user details and access token
+        res.status(201).json({
+            message: user ? 'User already exists' : 'User created successfully',
+            user,
+            accessToken
+        });
     } catch (error) {
         console.error('Error verifying OTP and creating user:', error.message);
         res.status(500).json({ message: 'Error verifying OTP and creating user', error: error.message });
     }
 });
+
 
 
 module.exports = router;

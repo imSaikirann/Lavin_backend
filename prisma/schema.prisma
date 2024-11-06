@@ -76,6 +76,7 @@ model User {
   isTemporary Boolean  @default(true)
   isVerified  Boolean  @default(false)
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Address details
   address String?
@@ -88,9 +89,8 @@ model User {
   // Relations
   cart   Cart[]
   orders Order[]
-
-  Buynow Buynow[]
 }
+
 
 model OTP {
   id         String                @id @default(auto()) @map("_id") @db.ObjectId
@@ -105,7 +105,7 @@ model OTP {
 model Order {
   id          String      @id @default(auto()) @map("_id") @db.ObjectId
   status      String
-  address     Json
+  address     Json?
   orderItems  OrderItem[] 
   payment     Boolean     @default(false)
   totalAmount Float
@@ -146,25 +146,4 @@ model CartItem {
   variantImage String?
 }
 
-
-model Buynow {
-  id        String     @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String     @db.ObjectId
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items     buyNowitem[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-}
-
-model buyNowitem {
-  id           String  @id @default(auto()) @map("_id") @db.ObjectId
-  buyNowId       String  @db.ObjectId
-  buynow         Buynow    @relation(fields: [buyNowId], references: [id], onDelete: Cascade)
-  productId    String
-  variant      Json
-  variantIndex Int?
-  quantity     Int
-  productPrice Float
-  variantImage String?
-}
 
