@@ -12,7 +12,7 @@ const orderRoutes = require('./routes/orderRoutes');
 
 const app = express();
 app.use(cookieParser());
-
+ 
 // Middleware
 app.use(express.json());
 const allowedOrigins = [

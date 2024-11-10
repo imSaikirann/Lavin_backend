@@ -109,6 +109,8 @@ model Order {
   orderItems  OrderItem[] 
   payment     Boolean     @default(false)
   totalAmount Float
+ phone            String? 
+  razorpayOrderId  String?   
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      String      @db.ObjectId
   createdAt   DateTime    @default(now())
