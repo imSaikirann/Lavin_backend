@@ -30,6 +30,7 @@ model Product {
   category           ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   reviews            Review[]
   internalPages      InternalPage[]
+  specifications               ProductSpecification[]
 }
 
 model InternalPage {
@@ -111,6 +112,8 @@ model Order {
   totalAmount Float
  phone            String? 
   razorpayOrderId  String?   
+  //  sourcePin         String      
+  // destinationPin    String      
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      String      @db.ObjectId
   createdAt   DateTime    @default(now())
@@ -149,3 +152,16 @@ model CartItem {
 }
 
 
+model ProductSpecification {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  productId        String   @db.ObjectId
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  weight           Float?   
+  dimensions       String? 
+  material         String?  
+  color            String? 
+  brand            String?  
+  manufacturer     String?  
+  warrantyPeriod   String?  
+
+}

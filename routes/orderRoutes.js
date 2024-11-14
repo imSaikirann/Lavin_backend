@@ -1,14 +1,114 @@
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
 const express = require('express');
 const router = express.Router();
-const authenticateUser = require('../middleware/userMiddleware'); 
-const Razorpay = require('razorpay'); 
-const razorpayInstance = new Razorpay({ 
-    key_id: process.env.VITE_RAZORPAY_LIVE_ID, 
-    key_secret: process.env.VITE_RAZORPAY_SECRET_KEY, 
-});
+const authenticateUser = require('../middleware/userMiddleware');
+const Razorpay = require('razorpay');
+const axios = require('axios');
+require('dotenv').config();
+const crypto = require('crypto');
 
+
+const prisma = new PrismaClient();
+const razorpayInstance = new Razorpay({
+    key_id: process.env.VITE_RAZORPAY_LIVE_ID,
+    key_secret: process.env.VITE_RAZORPAY_SECRET_KEY,
+});
+ 
+const DELHIVERY_API_KEY = process.env.DELHIVERY_API_KEY;
+
+// Function to check pincode availability
+async function checkPincodeAvailability(pincode) {
+    try {
+        const response = await axios.get(`https://track.delhivery.com/c/api/pin-codes/json/?filter_codes=${pincode}`, {
+            headers: {
+                'Authorization': `Bearer ${DELHIVERY_API_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        if (response.data && response.data.delivery_codes) {
+            const postalCodeData = response.data.delivery_codes[0].postal_code;
+            return {
+                status: 'success',
+                pincode: postalCodeData.pin,
+                city: postalCodeData.city,
+                is_serviceable: postalCodeData.is_oda === 'N',
+                cod_available: postalCodeData.cod === 'Y',
+                prepaid_available: postalCodeData.pre_paid === 'Y',
+                pickup_available: postalCodeData.pickup === 'Y',
+            };
+        } else {
+            return { status: 'error', message: 'No data available for this pincode.' };
+        }
+    } catch (error) {
+        console.error('Error checking pincode availability:', error.message);
+        return { status: 'error', message: 'Unable to check pincode availability.' };
+    }
+}
+
+// Calculate total weight of items
+const calculateTotalWeight = async (items) => {
+    let totalWeight = 0;
+    for (const item of items) {
+        const productSpec = await prisma.productSpecification.findFirst({
+            where: { productId: item.productId },
+        });
+        totalWeight += (productSpec?.weight || 0) * item.quantity;
+        console.log(totalWeight)
+    }
+    return totalWeight;
+};
+
+// Middleware to check pincode availability
+async function checkPincodeMiddleware(req, res, next) {
+    const { address } = req.body;
+    if (!address || !address.pinCode) {
+        return res.status(400).json({ error: 'Pincode is required in the address.' });
+    }
+
+    try {
+        const pincodeData = await checkPincodeAvailability(address.pinCode);
+        if (pincodeData.status === 'error' || !pincodeData.is_serviceable) {
+            return res.status(400).json({ message: 'The provided pincode is not serviceable.' });
+        }
+        req.pincodeData = pincodeData;
+        next();
+    } catch (error) {
+        console.error('Error checking pincode:', error);
+        res.status(500).json({ error: 'An error occurred while checking pincode availability.' });
+    }
+}
+
+// Fetch shipping cost from Delhivery API
+const getShippingCost = async (destinationPin, originPin, weight) => {
+    try {
+        const response = await axios.get(`https://track.delhivery.com/api/kinko/v1/invoice/charges/.json`, {
+            params: {
+                md: 'S',
+                ss: 'Delivered',
+                d_pin: destinationPin,
+                o_pin: originPin,
+                cgm: weight, 
+                pt: 'Pre-paid'
+            },
+            headers: {
+                'Authorization': `Token ${DELHIVERY_API_KEY}`, // Ensure DELHIVERY_API_KEY is set correctly
+                'Content-Type': 'application/json'              // Add Content-Type header
+            }
+        });
+       
+        return response.data[0]?.total_amount || 0;
+    } catch (error) {
+        console.error('Error fetching shipping cost:', error.response?.data || error.message);
+        return 0;
+    }
+};
+
+// Helper function to calculate total amount
+const calculateTotalAmount = (items) => {
+    return items.reduce((sum, item) => sum + item.productPrice * item.quantity, 0);
+};
+
+// Route to fetch all orders
 router.get('/getAllOrders', async (req, res) => {
     try {
         const orders = await prisma.order.findMany({
@@ -24,13 +124,8 @@ router.get('/getAllOrders', async (req, res) => {
     }
 });
 
-
-
-const calculateTotalAmount = (items) => {
-    return items.reduce((sum, item) => sum + item.productPrice * item.quantity, 0);
-};
-
-router.post('/create-order', authenticateUser, async (req, res) => {
+// Route to create an order
+router.post('/create-order', authenticateUser, checkPincodeMiddleware, async (req, res) => {
     const userId = req.user.userId;
     const { address, phone, items } = req.body;
 
@@ -39,73 +134,27 @@ router.post('/create-order', authenticateUser, async (req, res) => {
     }
 
     try {
-        let totalAmount = 0;
-
-        for (const item of items) {
-            if (!item.variant || !item.variant.id) {
-                return res.status(400).json({
-                    error: `Missing variant ID for product ${item.productId}. Please ensure all items have valid variants.`,
-                });
-            }
-
-            // Fetch the variant to check stock and price
-            const productVariant = await prisma.variant.findUnique({
-                where: { id: item.variant.id },
-            });
-
-            if (!productVariant) {
-                return res.status(404).json({ error: `Variant for product ID ${item.productId} not found.` });
-            }
-
-            if (productVariant.stock < item.quantity) {
-                return res.status(400).json({
-                    error: `Insufficient stock for product ${item.productId}. Available stock: ${productVariant.stock}`,
-                });
-            }
-
-            totalAmount += item.productPrice * item.quantity;
-        }
-
+        let totalAmount = calculateTotalAmount(items);
+        const totalWeight = await calculateTotalWeight(items);
+        const originPin = '500073';
+        const shippingCharges = await getShippingCost(address.pinCode, originPin, totalWeight);
+        console.log(shippingCharges)
+        totalAmount += shippingCharges;
+        console.log(totalAmount)
+    
         const razorpayOrder = await razorpayInstance.orders.create({
             amount: totalAmount * 100,
             currency: 'INR',
             receipt: `order_rcptid_${new Date().getTime()}`,
             payment_capture: 1,
         });
+        
 
-        const order = await prisma.order.create({
-            data: {
-                status: 'pending',
-                address,
-                phone,
-                userId,
-                payment: true,
-                totalAmount,
-                razorpayOrderId: razorpayOrder.id,
-                orderItems: {
-                    create: items.map((item) => ({
-                        productId: item.productId,
-                        variant: item.variant,
-                        quantity: item.quantity,
-                        productPrice: item.productPrice,
-                        variantImage: item.variantImage,
-                    })),
-                },
-            },
-            include: { orderItems: true },
-        });
-
-        for (const item of items) {
-            await prisma.variant.update({
-                where: { id: item.variant.id },
-                data: { stock: { decrement: item.quantity } },
-            });
-        }
-
+        
+ 
         res.status(201).json({
-            order: order,
             razorpayOrderId: razorpayOrder.id,
-            razorpayPaymentLink: razorpayOrder.payment_link,
+            shippingCharges,
         });
     } catch (error) {
         console.error('Error creating Razorpay order:', error);
@@ -114,9 +163,84 @@ router.post('/create-order', authenticateUser, async (req, res) => {
 });
 
 
+router.post('/razorpay-webhook', async (req, res) => {
+    console.log(req.headers); 
+   
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    console.log(req.headers)
+    const receivedSignature = req.headers['x-razorpay-signature'];
+    const generatedSignature = crypto
+        .createHmac('sha256', secret)
+        .update(JSON.stringify(req.body))
+        .digest('hex');
+    console.log(receivedSignature) //undeifined
+    console.log(generatedSignature)
+    if (receivedSignature !== generatedSignature) {
+        return res.status(400).json({ error: 'Invalid signature' });
+    }
+
+    const event = req.body.event;
+    const paymentData = req.body.payload.payment.entity;
+
+    if (event === 'payment.captured') {
+        try {
+            const { razorpay_order_id } = paymentData;
+
+           
+            const existingOrder = await prisma.order.findUnique({
+                where: { razorpayOrderId: razorpay_order_id },
+            });
+
+            if (existingOrder) {
+                return res.status(400).json({ error: 'Order already exists.' });
+            }
+
+         
+            const { userId, address, phone, items } = req.body.payload.payment.entity.notes; 
+
+            const order = await prisma.order.create({
+                data: {
+                    status: 'confirmed',
+                    address: JSON.parse(address),
+                    phone,
+                    userId: parseInt(userId),
+                    payment: true,
+                    totalAmount: paymentData.amount / 100,
+                    razorpayOrderId: razorpay_order_id,
+                    orderItems: {
+                        create: items.map((item) => ({
+                            productId: item.productId,
+                            variant: item.variant,
+                            quantity: item.quantity,
+                            productPrice: item.productPrice,
+                            variantImage: item.variantImage,
+                        })),
+                    },
+                },
+                include: { orderItems: true },
+            });
+
+            // Update stock based on items in the order
+            for (const item of items) {
+                await prisma.variant.update({
+                    where: { id: item.variant.id },
+                    data: { stock: { decrement: item.quantity } },
+                });
+            }
+
+            res.status(200).json({ status: 'Order confirmed', order });
+        } catch (error) {
+            console.error('Error creating order after payment verification:', error);
+            res.status(500).json({ error: 'An error occurred while creating the order.' });
+        }
+    } else {
+        res.status(400).json({ error: 'Unhandled event type' });
+    }
+});
 
 
-router.post('/placeOrder', authenticateUser, async (req, res) => {
+// Route to place an order
+router.post('/placeOrder', authenticateUser, checkPincodeMiddleware, async (req, res) => {
     const userId = req.user.userId;
 
     if (!userId) {
@@ -124,9 +248,8 @@ router.post('/placeOrder', authenticateUser, async (req, res) => {
     }
 
     try {
-       
         const cart = await prisma.cart.findFirst({
-            where: { userId: userId },
+            where: { userId },
             include: { items: true },
         });
 
@@ -134,45 +257,7 @@ router.post('/placeOrder', authenticateUser, async (req, res) => {
             return res.status(400).json({ error: 'Your cart is empty. Please add items to your cart before placing an order.' });
         }
 
-      
-        let totalAmount = 0;
-
-
-        for (const item of cart.items) {
-            const product = await prisma.product.findUnique({
-                where: { id: item.productId },
-                include: { variants: true },
-            });
-
-            if (!product) {
-                return res.status(404).json({ error: `Product with ID ${item.productId} not found.` });
-            }
-
-
-            const variant = product.variants.find((v) => v.id === item.variant?.id);
-
-            if (!variant) {
-                return res.status(404).json({ error: `Variant for product ID ${item.productId} not found.` });
-            }
-
-    
-            if (variant.stock < item.quantity) {
-                return res.status(400).json({
-                    error: `Insufficient stock for product ${product.productName}. Available stock: ${variant.stock}`,
-                });
-            }
-
-      
-            if (product.price !== item.productPrice && variant.price !== item.productPrice) {
-                return res.status(400).json({
-                    error: `Price inconsistency detected for product ${product.productName}. Please refresh and try again.`,
-                });
-            }
-
-         
-            totalAmount += item.productPrice * item.quantity;
-        }
-
+        const totalAmount = calculateTotalAmount(cart.items);
         const razorpayOrder = await razorpayInstance.orders.create({
             amount: totalAmount * 100,
             currency: 'INR',
@@ -184,9 +269,9 @@ router.post('/placeOrder', authenticateUser, async (req, res) => {
             data: {
                 status: 'pending',
                 address: req.body.address,
-                userId: userId,
+                userId,
                 payment: true,
-                totalAmount: totalAmount,
+                totalAmount,
                 razorpayOrderId: razorpayOrder.id,
                 orderItems: {
                     create: cart.items.map((item) => ({
@@ -198,17 +283,13 @@ router.post('/placeOrder', authenticateUser, async (req, res) => {
                     })),
                 },
             },
-            include: {
-                orderItems: true,
-            },
+            include: { orderItems: true },
         });
 
- 
         await prisma.cart.update({
             where: { id: cart.id },
             data: { items: { deleteMany: {} } },
         });
-
 
         for (const item of order.orderItems) {
             await prisma.variant.update({
@@ -223,6 +304,5 @@ router.post('/placeOrder', authenticateUser, async (req, res) => {
         res.status(500).json({ error: 'An error occurred while placing the order.' });
     }
 });
-
 
 module.exports = router;

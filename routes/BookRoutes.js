@@ -71,8 +71,8 @@ router.get('/getProducts', async (req, res) => {
             include: {
                 internalPages:true,
                 variants: true,
-                reviews: true
-
+                reviews: true,
+                specifications:true
             }
         });
 
