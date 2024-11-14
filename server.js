@@ -17,6 +17,7 @@ app.use(cookieParser());
  
 // Middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));  
 const allowedOrigins = [
     'http://localhost:5173', 
     'https://lavin-frontend-16df.vercel.app', 

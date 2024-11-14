@@ -134,28 +134,63 @@ router.post('/create-order', authenticateUser, checkPincodeMiddleware, async (re
     }
 
     try {
+   
         let totalAmount = calculateTotalAmount(items);
         const totalWeight = await calculateTotalWeight(items);
         const originPin = '500073';
         const shippingCharges = await getShippingCost(address.pinCode, originPin, totalWeight);
-        console.log(shippingCharges)
+        console.log(shippingCharges);
+
         totalAmount += shippingCharges;
-        console.log(totalAmount)
-    
+        console.log(totalAmount);
+
+        
         const razorpayOrder = await razorpayInstance.orders.create({
-            amount: totalAmount * 100,
+            amount: totalAmount * 100, 
             currency: 'INR',
             receipt: `order_rcptid_${new Date().getTime()}`,
             payment_capture: 1,
         });
-        
 
-        
- 
+      
+        const order = await prisma.order.create({
+            data: {
+                status: 'pending', 
+                address: typeof address === 'object' ? address : JSON.parse(address),
+                phone,
+                userId: userId,
+                payment: false, // Set to false initially
+                totalAmount: totalAmount,
+                razorpayOrderId: razorpayOrder.id,
+                orderItems: {
+                    create: items.map((item) => ({
+                        productId: item.productId,
+                        variant: item.variant,
+                        quantity: item.quantity,
+                        productPrice: item.productPrice,
+                        variantImage: item.variantImage,
+                    })),
+                },
+            },
+            include: { orderItems: true },
+        });
+
+        // Update stock based on items in the order
+        for (const item of items) {
+            await prisma.variant.update({
+                where: { id: item.variant.id },
+                data: { stock: { decrement: item.quantity } },
+            });
+        }
+
+        // Send the response back with the Razorpay order details and shipping charges
         res.status(201).json({
+            status: 'Order created',
+            order,
             razorpayOrderId: razorpayOrder.id,
             shippingCharges,
         });
+
     } catch (error) {
         console.error('Error creating Razorpay order:', error);
         res.status(500).json({ error: 'An error occurred while creating Razorpay order.' });
@@ -163,80 +198,54 @@ router.post('/create-order', authenticateUser, checkPincodeMiddleware, async (re
 });
 
 
+
 router.post('/razorpay-webhook', async (req, res) => {
-    console.log(req.headers); 
-   
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
-    console.log(req.headers)
-    const receivedSignature = req.headers['x-razorpay-signature'];
-    const generatedSignature = crypto
-        .createHmac('sha256', secret)
-        .update(JSON.stringify(req.body))
-        .digest('hex');
-    console.log(receivedSignature) //undeifined
-    console.log(generatedSignature)
-    if (receivedSignature !== generatedSignature) {
-        return res.status(400).json({ error: 'Invalid signature' });
+    const secret = process.env.VITE_RAZORPAY_SECRET_KEY;
+
+    if (!secret) {
+        return res.status(500).json({ error: 'Razorpay secret key not found.' });
     }
 
-    const event = req.body.event;
-    const paymentData = req.body.payload.payment.entity;
+    console.log("Full Request Body:", JSON.stringify(req.body, null, 2));
 
-    if (event === 'payment.captured') {
-        try {
-            const { razorpay_order_id } = paymentData;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
-           
-            const existingOrder = await prisma.order.findUnique({
-                where: { razorpayOrderId: razorpay_order_id },
-            });
+    const generated_signature = crypto
+        .createHmac('sha256', secret)
+        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+        .digest('hex');
 
-            if (existingOrder) {
-                return res.status(400).json({ error: 'Order already exists.' });
+    console.log("Received Signature:", razorpay_signature);
+    console.log("Generated Signature:", generated_signature);
+
+    if (generated_signature === razorpay_signature) {
+        const event = req.body.event; // Inspect if the event is in the root of the body
+        const payload = req.body.payload; // Check if the payload contains the event and payment data
+        console.log("Event:", event);
+        console.log("Payload:", JSON.stringify(payload, null, 2));
+
+        if (event === 'payment.captured') {
+            try {
+                const paymentData = payload.payment.entity;
+                console.log("Payment Data:", JSON.stringify(paymentData, null, 2));
+
+                // Proceed with order creation and stock update as before...
+                // (Existing code for creating the order)
+
+                res.status(200).json({ status: 'Order confirmed', order });
+            } catch (error) {
+                console.error('Error creating order:', error);
+                res.status(500).json({ error: 'An error occurred while creating the order.' });
             }
-
-         
-            const { userId, address, phone, items } = req.body.payload.payment.entity.notes; 
-
-            const order = await prisma.order.create({
-                data: {
-                    status: 'confirmed',
-                    address: JSON.parse(address),
-                    phone,
-                    userId: parseInt(userId),
-                    payment: true,
-                    totalAmount: paymentData.amount / 100,
-                    razorpayOrderId: razorpay_order_id,
-                    orderItems: {
-                        create: items.map((item) => ({
-                            productId: item.productId,
-                            variant: item.variant,
-                            quantity: item.quantity,
-                            productPrice: item.productPrice,
-                            variantImage: item.variantImage,
-                        })),
-                    },
-                },
-                include: { orderItems: true },
-            });
-
-            // Update stock based on items in the order
-            for (const item of items) {
-                await prisma.variant.update({
-                    where: { id: item.variant.id },
-                    data: { stock: { decrement: item.quantity } },
-                });
-            }
-
-            res.status(200).json({ status: 'Order confirmed', order });
-        } catch (error) {
-            console.error('Error creating order after payment verification:', error);
-            res.status(500).json({ error: 'An error occurred while creating the order.' });
+        } else {
+            res.status(400).json({ error: 'Unhandled event type' });
         }
     } else {
-        res.status(400).json({ error: 'Unhandled event type' });
+        res.status(400).json({ error: 'Invalid signature' });
     }
 });
+
+
 
 
 // Route to place an order
