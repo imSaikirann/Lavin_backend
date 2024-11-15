@@ -13,8 +13,9 @@ const razorpayInstance = new Razorpay({
     key_id: process.env.VITE_RAZORPAY_LIVE_ID,
     key_secret: process.env.VITE_RAZORPAY_SECRET_KEY,
 });
- 
+
 const DELHIVERY_API_KEY = process.env.DELHIVERY_API_KEY;
+
 
 // Function to check pincode availability
 async function checkPincodeAvailability(pincode) {
@@ -40,7 +41,7 @@ async function checkPincodeAvailability(pincode) {
             return { status: 'error', message: 'No data available for this pincode.' };
         }
     } catch (error) {
-        console.error('Error checking pincode availability:', error.message);
+        console.error( 'Error checking pincode availability:', error.message);
         return { status: 'error', message: 'Unable to check pincode availability.' };
     }
 }
@@ -87,7 +88,7 @@ const getShippingCost = async (destinationPin, originPin, weight) => {
                 ss: 'Delivered',
                 d_pin: destinationPin,
                 o_pin: originPin,
-                cgm: weight, 
+                cgm: weight,
                 pt: 'Pre-paid'
             },
             headers: {
@@ -95,13 +96,88 @@ const getShippingCost = async (destinationPin, originPin, weight) => {
                 'Content-Type': 'application/json'              // Add Content-Type header
             }
         });
-       
+
         return response.data[0]?.total_amount || 0;
     } catch (error) {
         console.error('Error fetching shipping cost:', error.response?.data || error.message);
         return 0;
     }
 };
+
+const createShipment = async (order) => {
+    try {
+        console.log('Order Received:', order);
+
+        const shippingAddress = order.address;
+        const items = order.orderItems;
+
+        // Ensure utility functions exist
+        if (typeof calculateTotalWeight !== 'function' || typeof calculateTotalAmount !== 'function') {
+            throw new Error('Utility functions calculateTotalWeight or calculateTotalAmount are missing.');
+        }
+
+     
+        const totalWeight = await calculateTotalWeight(items);
+
+       
+        const shipmentDetails = {
+            order_id: order?.id || '',
+            payment_mode: 'Pre-paid', 
+            pickup_location: "Lavin Visionaire", 
+
+            fragile_shipment: false,
+            customer_phone: order?.phone || '', 
+            address: {
+                line1: shippingAddress?.line1 || '',
+                line2: shippingAddress?.line2 || '',
+                city: shippingAddress?.city || '', 
+                state: shippingAddress?.state || '',
+                pin_code: shippingAddress?.pinCode || '', 
+                country: shippingAddress?.country || 'India', 
+            },
+            items: items?.map(item => ({
+                product_id: item.productId || '', 
+                quantity: item.quantity || 1, 
+                weight: item.weight || 200, 
+                price: item.productPrice || 0, 
+            })) || [], 
+            total_weight: totalWeight || 0, 
+            total_value: calculateTotalAmount(items) || 0, 
+            end_date: "2024-11-16", 
+        };
+
+        console.log('Shipment Details:', shipmentDetails);
+
+        // Make the request to Delhivery API
+        const response = await axios.post(
+            'https://staging-express.delhivery.com/api/cmu/create.json',
+            {
+                format: 'json',
+                data: JSON.stringify(shipmentDetails), // Ensure shipment details are stringified
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${DELHIVERY_API_KEY}`, // Ensure DELHIVERY_API_KEY is set correctly
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
+
+        // Handle response
+        if (response.data && response.data.success) {
+            console.log('Shipment Created Successfully:', response.data);
+            return { status: 'success', trackingId: response.data.tracking_id };
+        } else {
+            console.log(response)
+            const errorMessage = response.data || 'Unknown error from Delhivery API';
+            throw new Error('Failed to create shipment: ' + errorMessage);
+        }
+    } catch (error) {
+        console.error('Error creating shipment:', error.message);
+        return { status: 'error', message: error.message };
+    }
+};
+
 
 // Helper function to calculate total amount
 const calculateTotalAmount = (items) => {
@@ -134,7 +210,7 @@ router.post('/create-order', authenticateUser, checkPincodeMiddleware, async (re
     }
 
     try {
-   
+
         let totalAmount = calculateTotalAmount(items);
         const totalWeight = await calculateTotalWeight(items);
         const originPin = '500073';
@@ -144,22 +220,22 @@ router.post('/create-order', authenticateUser, checkPincodeMiddleware, async (re
         totalAmount += shippingCharges;
         console.log(totalAmount);
 
-        
+
         const razorpayOrder = await razorpayInstance.orders.create({
-            amount: totalAmount * 100, 
+            amount: totalAmount * 100,
             currency: 'INR',
             receipt: `order_rcptid_${new Date().getTime()}`,
             payment_capture: 1,
         });
 
-      
+
         const order = await prisma.order.create({
             data: {
-                status: 'pending', 
+                status: 'pending',
                 address: typeof address === 'object' ? address : JSON.parse(address),
                 phone,
                 userId: userId,
-                payment: false, // Set to false initially
+                payment: false,
                 totalAmount: totalAmount,
                 razorpayOrderId: razorpayOrder.id,
                 orderItems: {
@@ -182,7 +258,6 @@ router.post('/create-order', authenticateUser, checkPincodeMiddleware, async (re
                 data: { stock: { decrement: item.quantity } },
             });
         }
-
         // Send the response back with the Razorpay order details and shipping charges
         res.status(201).json({
             status: 'Order created',
@@ -198,7 +273,6 @@ router.post('/create-order', authenticateUser, checkPincodeMiddleware, async (re
 });
 
 
-
 router.post('/razorpay-webhook', async (req, res) => {
     const secret = process.env.VITE_RAZORPAY_SECRET_KEY;
 
@@ -208,7 +282,7 @@ router.post('/razorpay-webhook', async (req, res) => {
 
     console.log("Full Request Body:", JSON.stringify(req.body, null, 2));
 
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, address, phone, userId, totalAmount, razorpayOrder, items } = req.body;
 
     const generated_signature = crypto
         .createHmac('sha256', secret)
@@ -219,29 +293,38 @@ router.post('/razorpay-webhook', async (req, res) => {
     console.log("Generated Signature:", generated_signature);
 
     if (generated_signature === razorpay_signature) {
-        const event = req.body.event; // Inspect if the event is in the root of the body
-        const payload = req.body.payload; // Check if the payload contains the event and payment data
-        console.log("Event:", event);
-        console.log("Payload:", JSON.stringify(payload, null, 2));
+        // Payment verification is successful
+        try {
+            // Update the order status to 'payment done'
+            const order = await prisma.order.update({
+                where: { razorpayOrderId: razorpay_order_id }, // This should work now that razorpayOrderId is unique
+                data: {
+                    payment: true, // Mark payment as done
+                },
+                include: { orderItems: true },
+            });
 
-        if (event === 'payment.captured') {
-            try {
-                const paymentData = payload.payment.entity;
-                console.log("Payment Data:", JSON.stringify(paymentData, null, 2));
+            // Create shipment after payment verification
+            const shipmentData = await createShipment(order);
 
-                // Proceed with order creation and stock update as before...
-                // (Existing code for creating the order)
+            if (shipmentData.status === 'success') {
+                // Update the order status to 'shipped'
+                await prisma.order.update({
+                    where: { razorpayOrderId: razorpay_order_id },
+                    data: { status: 'shipped', shipmentTrackingId: shipmentData.trackingId },
+                });
 
-                res.status(200).json({ status: 'Order confirmed', order });
-            } catch (error) {
-                console.error('Error creating order:', error);
-                res.status(500).json({ error: 'An error occurred while creating the order.' });
+                res.status(200).json({ success: true, message: 'Payment successful, shipment created, and order updated.' });
+            } else {
+                res.status(500).json({ success: false, message: 'Failed to create shipment.' });
             }
-        } else {
-            res.status(400).json({ error: 'Unhandled event type' });
+        } catch (error) {
+            console.error('Error during payment verification or shipment creation:', error);
+            res.status(500).json({ error: 'An error occurred while processing the payment and creating shipment.' });
         }
     } else {
-        res.status(400).json({ error: 'Invalid signature' });
+        // Invalid signature
+        res.status(400).json({ success: false, error: 'Payment verification failed' });
     }
 });
 

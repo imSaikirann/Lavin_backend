@@ -90,6 +90,69 @@ router.get('/getProducts', async (req, res) => {
     }
 });
 
+// Edit Product
+router.put('/editProduct/:id', upload.array('files'), async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const parsedData = productSchema.parse(req.body);
+        const { productName, price, productDescription, offeredPrice, categoryId, categoryName } = parsedData;
+
+        let imageUrl = [];
+
+        if (req.files && req.files.length > 0) {
+            for (const file of req.files) {
+                const result = await uploadToS3(file);
+                imageUrl.push(result.Location);
+            }
+        }
+
+        const data = await prisma.product.update({
+            where: { id },
+            data: {
+                productName,
+                price,
+                productDescription,
+                offeredPrice,
+                categoryId,
+                categoryName,
+                images: imageUrl.length > 0 ? imageUrl : undefined, // Keep existing images if none are uploaded
+            },
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Product updated successfully",
+            data,
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "An error occurred while editing the product",
+            error: error.message,
+        });
+    }
+});
+
+// Delete Product
+router.delete('/deleteProduct/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        await prisma.product.delete({ where: { id } });
+
+        res.status(200).json({
+            success: true,
+            message: "Product deleted successfully",
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "An error occurred while deleting the product",
+            error: error.message,
+        });
+    }
+});
 
 router.get('/getProduct/:id' , async (req, res) => {
    const {id} = req.params
@@ -150,6 +213,53 @@ router.post('/addVariants/:id', async (req, res) => {
         });
     }
 });
+
+// Edit Variant
+router.put('/editVariant/:id', async (req, res) => {
+    const { id } = req.params;
+    const { size, price, stock, color } = req.body;
+
+    try {
+        const data = await prisma.variant.update({
+            where: { id },
+            data: { size, price,   stock: parseInt(stock), color },
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Variant updated successfully",
+            data,
+        });
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({
+            success: false,
+            message: "An error occurred while editing the variant",
+            error: error.message,
+        });
+    }
+});
+
+// Delete Variant
+router.delete('/deleteVariant/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        await prisma.variant.delete({ where: { id } });
+
+        res.status(200).json({
+            success: true,
+            message: "Variant deleted successfully",
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "An error occurred while deleting the variant",
+            error: error.message,
+        });
+    }
+});
+
 
 router.post('/addReview/:id', async (req, res) => {
     const { id } = req.params; 

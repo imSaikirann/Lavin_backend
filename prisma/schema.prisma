@@ -15,22 +15,22 @@ model ProductCategory {
 }
 
 model Product {
-  id                 String          @id @default(auto()) @map("_id") @db.ObjectId
+  id                 String                 @id @default(auto()) @map("_id") @db.ObjectId
   productName        String
   productDescription String
   price              Float
   offeredPrice       Float?
   images             String[]
   variants           Variant[]
-  bestSeller         Boolean         @default(false)
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  bestSeller         Boolean                @default(false)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
   categoryName       String
-  categoryId         String          @db.ObjectId
-  category           ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId         String                 @db.ObjectId
+  category           ProductCategory        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   reviews            Review[]
   internalPages      InternalPage[]
-  specifications               ProductSpecification[]
+  specifications     ProductSpecification[]
 }
 
 model InternalPage {
@@ -78,7 +78,6 @@ model User {
   isVerified  Boolean  @default(false)
   createdAt   DateTime @default(now())
 
-
   // Address details
   address String?
   street  String?
@@ -92,7 +91,6 @@ model User {
   orders Order[]
 }
 
-
 model OTP {
   id         String                @id @default(auto()) @map("_id") @db.ObjectId
   code       String
@@ -104,27 +102,27 @@ model OTP {
 }
 
 model Order {
-  id          String      @id @default(auto()) @map("_id") @db.ObjectId
-  status      String
-  address     Json?
-  orderItems  OrderItem[] 
-  payment     Boolean     @default(false)
-  totalAmount Float
- phone            String? 
-  razorpayOrderId  String?   
+  id              String      @id @default(auto()) @map("_id") @db.ObjectId
+  status          String
+  address         Json?
+  orderItems      OrderItem[]
+  payment         Boolean     @default(false)
+  totalAmount     Float
+  phone           String?
+  razorpayOrderId String?     @unique
   //  sourcePin         String      
   // destinationPin    String      
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId      String      @db.ObjectId
-  createdAt   DateTime    @default(now())
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String      @db.ObjectId
+  createdAt       DateTime    @default(now())
 }
 
 model OrderItem {
-  id           String      @id @default(auto()) @map("_id") @db.ObjectId
-  orderId      String      @db.ObjectId 
-  order        Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId    String      @db.ObjectId 
-  variant      Json       
+  id           String  @id @default(auto()) @map("_id") @db.ObjectId
+  orderId      String  @db.ObjectId
+  order        Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    String  @db.ObjectId
+  variant      Json
   quantity     Int
   productPrice Float
   variantImage String?
@@ -151,17 +149,15 @@ model CartItem {
   variantImage String?
 }
 
-
 model ProductSpecification {
-  id               String   @id @default(auto()) @map("_id") @db.ObjectId
-  productId        String   @db.ObjectId
-  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  weight           Float?   
-  dimensions       String? 
-  material         String?  
-  color            String? 
-  brand            String?  
-  manufacturer     String?  
-  warrantyPeriod   String?  
-
+  id             String  @id @default(auto()) @map("_id") @db.ObjectId
+  productId      String  @db.ObjectId
+  product        Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  weight         Float?
+  dimensions     String?
+  material       String?
+  color          String?
+  brand          String?
+  manufacturer   String?
+  warrantyPeriod String?
 }

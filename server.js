@@ -9,6 +9,8 @@ const userRoutes = require('./routes/UserRoutes');
 const userCartRoutes = require('./routes/cartRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const productSpecificationRoutes = require('./routes/productSpecification');
+const deliveryRoutes = require('./routes/deliveryRoutes');
+
 
 
 
@@ -45,6 +47,8 @@ app.use('/api/v1/user', userRoutes);
 app.use('/api/v1/userCart', userCartRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/specifications', productSpecificationRoutes);
+app.use('/api/v1/delivery', deliveryRoutes);
+
 
 
 
