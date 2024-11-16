@@ -22,8 +22,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));  
 const allowedOrigins = [
     'http://localhost:5173', 
-    'https://lavin-frontend-16df.vercel.app', 
-    'https://lavin.in' 
+    'https://lavin.in' ,
+    'https://admindashboard.lavin.in'
 ];
 
 app.use(cors({
