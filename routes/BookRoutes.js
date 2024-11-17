@@ -11,22 +11,21 @@ const upload = multer({ storage: multer.memoryStorage() });
 const productSchema = z.object({
     productName: z.string().min(1, "Product name is required."),
     price: z.string().refine((val) => !isNaN(parseFloat(val)), {
-        message: "Price must be a valid number.",
+        message: "Price must be a valid number.", 
     }).transform(parseFloat),
     productDescription: z.string().min(1, "Product description is required."),
     offeredPrice: z.string().optional().refine((val) => !isNaN(parseFloat(val)), {
         message: "Offered price must be a valid number if provided.",
     }).transform((val) => (val ? parseFloat(val) : null)),
-    categoryId: z.string().min(1, "Category ID is required."),
     categoryName: z.string().min(1, "Category name is required."),
 });
 
 router.post('/addProduct', upload.array('files'), async (req, res) => { 
     const parsedData = productSchema.parse(req.body);
-    const { productName, price, productDescription, offeredPrice, categoryId, categoryName } = parsedData;
+    const { productName, price, productDescription, offeredPrice,  categoryName } = parsedData;
     const parsedPrice = parseFloat(price);
     const parsedOfferedPrice = offeredPrice ? parseFloat(offeredPrice) : null;
-
+ 
     try {
         let imageUrl = [];
 
@@ -43,7 +42,7 @@ router.post('/addProduct', upload.array('files'), async (req, res) => {
                 price: parsedPrice,
                 productDescription,
                 offeredPrice: parsedOfferedPrice,
-                categoryId,
+             
                 images: imageUrl,  
                 categoryName
             }

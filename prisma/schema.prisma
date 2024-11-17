@@ -11,7 +11,7 @@ model ProductCategory {
   id                  String    @id @default(auto()) @map("_id") @db.ObjectId
   category            String    @unique
   allowsInternalPages Boolean   @default(false)
-  products            Product[]
+ 
 }
 
 model Product {
@@ -26,8 +26,8 @@ model Product {
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt
   categoryName       String
-  categoryId         String                 @db.ObjectId
-  category           ProductCategory        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+
   reviews            Review[]
   internalPages      InternalPage[]
   specifications     ProductSpecification[]
