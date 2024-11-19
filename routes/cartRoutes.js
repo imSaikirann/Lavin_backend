@@ -104,36 +104,34 @@ router.delete('/cart/removeProduct', authenticateUser, async (req, res) => {
 });
 
 router.post('/cart/addProduct', authenticateUser, async (req, res) => {
-    const userId = req.user.userId;  
+    const userId = req.user.id; // Correctly extract the authenticated user's ID
     const { productId, variant, variantIndex, quantity, productPrice, variantImage } = req.body;
 
     try {
-        // Find the user's cart based on userId
-        let cart = await prisma.cart.findUnique({
-            where: { id: userId },
-            include: { items: true },
+        // Find or create the user's cart
+        let cart = await prisma.cart.findFirst({
+            where: { userId }, // Use the correct field to find the cart by user ID
+            include: { items: true }, // Include related cart items
         });
 
-    
         if (!cart) {
             cart = await prisma.cart.create({
                 data: {
-                    id: userId,  
-                    user: { connect: { id: userId } },
+                    user: { connect: { id: userId } }, // Establish the relationship with the user
                 },
-                include: { items: true },
+                include: { items: true }, // Include items for the created cart
             });
         }
 
-   
+        // Check if the product with the same variant already exists in the cart
         const existingCartItem = cart.items.find(
-            item => item.productId === productId && item.variantIndex === variantIndex
+            (item) => item.productId === productId && item.variantIndex === variantIndex
         );
 
         if (existingCartItem) {
-            // Update the quantity if the item already exists in the cart
+            // Update the quantity if the item exists in the cart
             await prisma.cartItem.update({
-                where: { id: existingCartItem.id },
+                where: { id: existingCartItem.id }, // Identify the cart item by its ID
                 data: {
                     quantity: existingCartItem.quantity + quantity,
                 },
@@ -142,14 +140,14 @@ router.post('/cart/addProduct', authenticateUser, async (req, res) => {
             return res.status(200).json({ message: 'Product quantity updated in cart' });
         }
 
-        // Add a new item to the cart if it doesn't already exist
+        // Add a new item to the cart if it doesn't exist
         await prisma.cartItem.create({
             data: {
-                cartId: cart.id,
+                cart: { connect: { id: cart.id } }, // Link the new item to the existing cart
                 productId,
                 variant,
                 variantIndex,
-                quantity, 
+                quantity,
                 productPrice,
                 variantImage,
             },
@@ -157,7 +155,6 @@ router.post('/cart/addProduct', authenticateUser, async (req, res) => {
 
         res.status(201).json({ message: 'Product added to cart successfully' });
     } catch (error) {
-        console.log(error)
         console.error('Error adding product to cart:', error.message);
         res.status(500).json({ message: 'Error adding product to cart', error: error.message });
     }
@@ -200,13 +197,13 @@ router.patch('/cart/updateQuantity', authenticateUser, async (req, res) => {
     }
 });
 
-router.get('/getCartItems',authenticateUser, async (req, res) => {
-    const userId = req.user.id;
+router.get('/getCartItems', authenticateUser, async (req, res) => {
+    const userId = req.user.id; // Extract user ID from authenticated user
 
     try {
         const cart = await prisma.cart.findFirst({
-            where: { id:userId },  
-            include: { items: true },
+            where: { userId }, // Use userId to fetch the cart specific to the logged-in user
+            include: { items: true }, // Include associated items in the response
         });
 
         if (!cart) {

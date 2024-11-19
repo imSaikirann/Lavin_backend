@@ -10,6 +10,10 @@ const userCartRoutes = require('./routes/cartRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const productSpecificationRoutes = require('./routes/productSpecification');
 const deliveryRoutes = require('./routes/deliveryRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
+const trafficRouter = require('./routes/trafficRoutes');
+
+
 
 
 
@@ -22,6 +26,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));  
 const allowedOrigins = [
     'http://localhost:5173', 
+    'http://localhost:5174', 
     'https://lavin.in' ,
     'https://admindashboard.lavin.in'
 ];
@@ -38,9 +43,10 @@ app.use(cors({
     credentials: true
 }));
 
+app.use('/', trafficRouter);
 // Routes
 app.use('/api/v1/bookProducts', bookProductsRoutes); 
-app.use('/api/v1/productCategory', productCategoryRoutes);
+app.use('/api/v1/productCategory', productCategoryRoutes); 
 app.use('/api/v1', emailServicesRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/user', userRoutes);
@@ -48,6 +54,8 @@ app.use('/api/v1/userCart', userCartRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/specifications', productSpecificationRoutes);
 app.use('/api/v1/delivery', deliveryRoutes);
+app.use('/api/v1/reviews', reviewRoutes);
+
 
 
 

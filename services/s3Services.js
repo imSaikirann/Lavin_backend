@@ -41,23 +41,26 @@ const deleteFileFromS3 = async (bucketName, fileKey) => {
         return Promise.resolve(); 
     }
 
-    const extractedKey = fileKey.split('/');
+    // Make sure the key is properly formatted
+    const extractedKey = fileKey.split('/').pop(); // Extract the last part of the URL
 
-    if (!extractedKey[3]) {
-        console.log('File key format is incorrect, skipping deletion.');
+    if (!extractedKey) {
+        console.log('File key format is incorrect or empty, skipping deletion.');
         return Promise.resolve(); 
     }
 
     try {
         const command = new DeleteObjectCommand({
             Bucket: bucketName,
-            Key: extractedKey[3]
+            Key: extractedKey,
         });
         await s3Client.send(command);
+        console.log(`File with key ${extractedKey} deleted successfully.`);
     } catch (error) {
         console.error('Error deleting file from S3:', error);
         throw new Error('S3 deletion failed.');
     }
 };
+
 
 module.exports = { uploadToS3, deleteFileFromS3 };

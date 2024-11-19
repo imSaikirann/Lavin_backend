@@ -2,56 +2,41 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const express = require('express');
 const router = express.Router();
-const { uploadToS3 } = require('../services/s3Services');
+const { uploadToS3, deleteFileFromS3 } = require('../services/s3Services');
 const multer = require('multer');
-const z = require('zod') 
+const z = require('zod');
 
 const upload = multer({ storage: multer.memoryStorage() });
 
 const productSchema = z.object({
-    productName: z.string().min(1, "Product name is required."),
-    price: z.string().refine((val) => !isNaN(parseFloat(val)), {
-        message: "Price must be a valid number.", 
-    }).transform(parseFloat),
-    productDescription: z.string().min(1, "Product description is required."),
-    offeredPrice: z.string().optional().refine((val) => !isNaN(parseFloat(val)), {
-        message: "Offered price must be a valid number if provided.",
-    }).transform((val) => (val ? parseFloat(val) : null)),
-    categoryName: z.string().min(1, "Category name is required."),
-});
+    productName: z.string(),
+    price: z.number(), // Change to expect a number (float)
+    productDescription: z.string(),
+    offeredPrice: z.number().optional(), // offeredPrice is optional, so use optional()
+    categoryName: z.string(),
+  });
+  
 
-router.post('/addProduct', upload.array('files'), async (req, res) => { 
-    const parsedData = productSchema.parse(req.body);
-    const { productName, price, productDescription, offeredPrice,  categoryName } = parsedData;
-    const parsedPrice = parseFloat(price);
-    const parsedOfferedPrice = offeredPrice ? parseFloat(offeredPrice) : null;
- 
+// Add Product
+router.post('/addProduct', async (req, res) => {
     try {
-        let imageUrl = [];
-
-        if (req.files && req.files.length > 0) {
-            for (const file of req.files) {
-                const result = await uploadToS3(file);
-                imageUrl.push(result.Location); 
-            }
-        }
+        const parsedData = productSchema.parse(req.body);
+        const { productName, price, productDescription, offeredPrice, categoryName } = parsedData;
 
         const data = await prisma.product.create({
             data: {
                 productName,
-                price: parsedPrice,
+                price,
                 productDescription,
-                offeredPrice: parsedOfferedPrice,
-             
-                images: imageUrl,  
-                categoryName
-            }
+                offeredPrice,
+                categoryName,
+            },
         });
 
         res.status(201).json({
             success: true,
             message: "Product added successfully",
-            data
+            data,
         });
     } catch (error) {
         console.error("Error adding product:", error);
@@ -63,22 +48,21 @@ router.post('/addProduct', upload.array('files'), async (req, res) => {
     }
 });
 
-
+// Get All Products
 router.get('/getProducts', async (req, res) => {
     try {
         const data = await prisma.product.findMany({
             include: {
-                internalPages:true,
                 variants: true,
                 reviews: true,
-                specifications:true
-            }
+                specifications: true,
+            },
         });
 
         res.status(200).json({
             success: true,
-            message: "Products fetched Successfully",
-            data: data,
+            message: "Products fetched successfully",
+            data,
         });
     } catch (error) {
         res.status(500).json({
@@ -90,21 +74,12 @@ router.get('/getProducts', async (req, res) => {
 });
 
 // Edit Product
-router.put('/editProduct/:id', upload.array('files'), async (req, res) => {
+router.put('/editProduct/:id', async (req, res) => {
     const { id } = req.params;
 
     try {
         const parsedData = productSchema.parse(req.body);
-        const { productName, price, productDescription, offeredPrice, categoryId, categoryName } = parsedData;
-
-        let imageUrl = [];
-
-        if (req.files && req.files.length > 0) {
-            for (const file of req.files) {
-                const result = await uploadToS3(file);
-                imageUrl.push(result.Location);
-            }
-        }
+        const { productName, price, productDescription, offeredPrice, categoryName } = parsedData;
 
         const data = await prisma.product.update({
             where: { id },
@@ -113,9 +88,7 @@ router.put('/editProduct/:id', upload.array('files'), async (req, res) => {
                 price,
                 productDescription,
                 offeredPrice,
-                categoryId,
                 categoryName,
-                images: imageUrl.length > 0 ? imageUrl : undefined, // Keep existing images if none are uploaded
             },
         });
 
@@ -153,75 +126,101 @@ router.delete('/deleteProduct/:id', async (req, res) => {
     }
 });
 
-router.get('/getProduct/:id' , async (req, res) => {
-   const {id} = req.params
-    try {
-      
-        const data = await prisma.product.findFirst({
-            where:{
-                id : id
-            },
-            include:{
-                variants:true,
-                reviews:true
-            }
-        })
+// Get Single Product
+router.get('/getProduct/:id', async (req, res) => {
+    const { id } = req.params;
 
-      
+    try {
+        const data = await prisma.product.findFirst({
+            where: { id },
+            include: {
+                variants: true,
+                reviews: true,
+            },
+        });
+
         res.status(200).json({
             success: true,
-            message: "Product fetched Successfully",
-            data: data,
+            message: "Product fetched successfully",
+            data,
         });
     } catch (error) {
-      
         res.status(500).json({
             success: false,
-            message: "An error occurred while getting product",
+            message: "An error occurred while getting the product",
             error: error.message,
         });
     }
 });
 
+router.post('/addVariant/:productId', upload.array('files'), async (req, res) => {
+    const { productId } = req.params;
+    const { size, stock, color } = req.body;
 
-router.post('/addVariants/:id', async (req, res) => {
-    const { id } = req.params; 
-    const { size, productId, price, stock, color } = req.body;
-    
     try {
+        let imageUrl = [];
+
+        // Handle file uploads to S3 and store the URLs in imageUrl array
+        if (req.files && req.files.length > 0) {
+            for (const file of req.files) {
+                const result = await uploadToS3(file);
+                imageUrl.push(result.Location);
+            }
+        }
+
+        // Create the variant and associate it with the product
         const data = await prisma.variant.create({
-            data: { 
+            data: {
                 size,
-                price,
-                stock,
+                stock: parseInt(stock), // Ensure stock is parsed as a number
                 color,
-                productId: id 
+                images: imageUrl,
+                product: { 
+                    connect: { id: productId } // Use productId to connect to the existing product
+                }
             }
         });
 
+        // Send success response with created variant data
         res.status(201).json({
             success: true,
-            message: "Variants added successfully",
-            data: data,
+            message: "Variant added successfully",
+            data,
         });
     } catch (error) {
+        console.error("Error adding variant:", error);
         res.status(500).json({
             success: false,
-            message: "An error occurred while adding variants",
+            message: "An error occurred while adding the variant",
             error: error.message,
         });
     }
 });
 
+
 // Edit Variant
-router.put('/editVariant/:id', async (req, res) => {
+router.put('/editVariant/:id', upload.array('files'), async (req, res) => {
     const { id } = req.params;
-    const { size, price, stock, color } = req.body;
+    const { size, stock, color } = req.body;
 
     try {
+        let imageUrl = [];
+
+        if (req.files && req.files.length > 0) {
+            for (const file of req.files) {
+                const result = await uploadToS3(file);
+                imageUrl.push(result.Location);
+            }
+        }
+
         const data = await prisma.variant.update({
             where: { id },
-            data: { size, price,   stock: parseInt(stock), color },
+            data: {
+                size,
+                stock: parseInt(stock),
+                color,
+                images: imageUrl.length > 0 ? imageUrl : undefined,
+            },
         });
 
         res.status(200).json({
@@ -230,7 +229,7 @@ router.put('/editVariant/:id', async (req, res) => {
             data,
         });
     } catch (error) {
-        console.log(error)
+        console.error("Error editing variant:", error);
         res.status(500).json({
             success: false,
             message: "An error occurred while editing the variant",
@@ -258,79 +257,5 @@ router.delete('/deleteVariant/:id', async (req, res) => {
         });
     }
 });
-
-
-router.post('/addReview/:id', async (req, res) => {
-    const { id } = req.params; 
-    const {  comment,rating, productId  } = req.body;
-    
-    try {
-        const data = await prisma.review.create({
-            data: { 
-                rating,
-                comment,
-                productId: id 
-            }
-        });
-
-        res.status(201).json({
-            success: true,
-            message: "Review added successfully",
-            data: data,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "An error occurred while adding Review",
-            error: error.message,
-        });
-    }
-});
-
-router.post('/addInternalPages/:id',  upload.array('files'), async (req, res) => {
-    const { id } = req.params; 
-    const {  pageType  ,pageCount } = req.body;
-    
-    try {
-        let imageUrl = [];
-
-        if (req.files && req.files.length > 0) {
-            for (const file of req.files) {
-                const result = await uploadToS3(file);
-                imageUrl.push(result.Location);
-            }
-        }
-    
-        const pictureNames = imageUrl.map(url => {
-            const parts = url.split('/');
-            return parts[parts.length - 1];
-        });
-
-        const data = await prisma.internalPage.create({
-            data: {
-                pageType ,
-                pageCount,
-                images: pictureNames,
-                productId:id
-            }
-           
-        });
-
-        res.status(201).json({
-            success: true,
-            message: "Book internal pages  added successfully",
-            data
-        });
-    } catch (error) {
-        console.error("Error adding product:", error);
-        res.status(500).json({
-            success: false,
-            message: "An error occurred while adding the book pages",
-            error: error.message,
-        });
-    }
-});
-
-
 
 module.exports = router;
