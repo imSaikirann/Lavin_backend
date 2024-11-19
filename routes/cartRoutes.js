@@ -70,6 +70,7 @@ router.post('/cart/sync', authenticateUser, async (req, res) => {
 });
 
 router.delete('/cart/removeProduct', authenticateUser, async (req, res) => {
+    console.log(req.user)
     const userId = req.user.id;
     const {  productId, variantId } = req.body;
 
@@ -104,7 +105,8 @@ router.delete('/cart/removeProduct', authenticateUser, async (req, res) => {
 });
 
 router.post('/cart/addProduct', authenticateUser, async (req, res) => {
-    const userId = req.user.id; // Correctly extract the authenticated user's ID
+    const userId = req.user.userId; 
+    
     const { productId, variant, variantIndex, quantity, productPrice, variantImage } = req.body;
 
     try {
@@ -117,9 +119,9 @@ router.post('/cart/addProduct', authenticateUser, async (req, res) => {
         if (!cart) {
             cart = await prisma.cart.create({
                 data: {
-                    user: { connect: { id: userId } }, // Establish the relationship with the user
+                    user: { connect: { id: userId } }, 
                 },
-                include: { items: true }, // Include items for the created cart
+                include: { items: true },
             });
         }
 
@@ -163,10 +165,10 @@ router.post('/cart/addProduct', authenticateUser, async (req, res) => {
 
 
 router.patch('/cart/updateQuantity', authenticateUser, async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.user.id; 
 
     const {  productId, variantIndex, newQuantity } = req.body;
-    console.log(variantIndex)
+
     try {
         const cart = await prisma.cart.findFirst({
             where: { id: userId },
@@ -198,13 +200,15 @@ router.patch('/cart/updateQuantity', authenticateUser, async (req, res) => {
 });
 
 router.get('/getCartItems', authenticateUser, async (req, res) => {
-    const userId = req.user.id; // Extract user ID from authenticated user
+    const userId = req.user.userId; 
+    console.log(req.user.userId)
 
     try {
         const cart = await prisma.cart.findFirst({
-            where: { userId }, // Use userId to fetch the cart specific to the logged-in user
-            include: { items: true }, // Include associated items in the response
+            where: { userId },
+            include: { items: true }, 
         });
+        console.log(cart)
 
         if (!cart) {
             return res.status(404).json({ message: 'Cart not found' });
