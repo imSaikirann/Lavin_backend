@@ -2,7 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const express = require('express');
 const router = express.Router();
 const authenticateUser = require('../middleware/userMiddleware');
-const Razorpay = require('razorpay');
+const Razorpay = require('razorpay'); 
 const axios = require('axios');
 require('dotenv').config();
 const crypto = require('crypto');

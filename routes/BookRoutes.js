@@ -19,6 +19,7 @@ const productSchema = z.object({
 
 // Add Product
 router.post('/addProduct', async (req, res) => {
+    console.log(req.body)
     try {
         const parsedData = productSchema.parse(req.body);
         const { productName, price, productDescription, offeredPrice, categoryName } = parsedData;
@@ -56,6 +57,7 @@ router.get('/getProducts', async (req, res) => {
                 variants: true,
                 reviews: true,
                 specifications: true,
+                internalPages:true
             },
         });
 
@@ -257,5 +259,184 @@ router.delete('/deleteVariant/:id', async (req, res) => {
         });
     }
 });
+
+// Add InternalPage
+router.post('/addInternalPage/:id', upload.array('images'), async (req, res) => {
+    const {id} = req.params
+    try {
+        const { pageType, pageCount } = req.body;
+        let imagesUrl = [];
+
+      
+        if (req.files && req.files.length > 0) {
+            for (const file of req.files) {
+                const result = await uploadToS3(file); 
+                imagesUrl.push(result.Location);
+            }
+        }
+
+        // Create new InternalPage
+        const internalPage = await prisma.internalPage.create({
+            data: {
+                pageType,
+                pageCount,
+                images: imagesUrl, 
+                productId:id
+            },
+        });
+
+        res.status(201).json({
+            success: true,
+            message: 'Internal Page added successfully',
+            data: internalPage
+        });
+    } catch (error) {
+        console.error('Error adding internal page:', error);
+        res.status(500).json({
+            success: false,
+            message: 'An error occurred while adding the internal page',
+            error: error.message
+        });
+    }
+});
+
+// Get All InternalPages
+router.get('/getInternalPages', async (req, res) => {
+    try {
+        const data = await prisma.internalPage.findMany({
+            include: {
+                product: true
+            }
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Internal Pages fetched successfully',
+            data
+        });
+    } catch (error) {
+        console.error('Error fetching internal pages:', error);
+        res.status(500).json({
+            success: false,
+            message: 'An error occurred while fetching internal pages',
+            error: error.message
+        });
+    }
+});
+
+// Get Single InternalPage
+router.get('/getInternalPage/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const data = await prisma.internalPage.findUnique({
+            where: { id },
+            include: {
+                product: true 
+            }
+        });
+
+        if (!data) {
+            return res.status(404).json({
+                success: false,
+                message: 'Internal Page not found'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Internal Page fetched successfully',
+            data
+        });
+    } catch (error) {
+        console.error('Error fetching internal page:', error);
+        res.status(500).json({
+            success: false,
+            message: 'An error occurred while fetching the internal page',
+            error: error.message
+        });
+    }
+});
+
+
+router.put('/editInternalPage/:id', upload.array('images'), async (req, res) => {
+    const { id } = req.params;
+    const { pageType, pageCount, productId } = req.body;
+    let imagesUrl = [];
+
+    try {
+       
+        if (req.files && req.files.length > 0) {
+            for (const file of req.files) {
+                const result = await uploadToS3(file); 
+                imagesUrl.push(result.Location);
+            }
+        }
+
+      
+        const updatedInternalPage = await prisma.internalPage.update({
+            where: { id },
+            data: {
+                pageType,
+                pageCount,
+                images: imagesUrl.length > 0 ? imagesUrl : undefined, 
+                product: { connect: { id: productId } }
+            },
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Internal Page updated successfully',
+            data: updatedInternalPage
+        });
+    } catch (error) {
+        console.error('Error updating internal page:', error);
+        res.status(500).json({
+            success: false,
+            message: 'An error occurred while updating the internal page',
+            error: error.message
+        });
+    }
+});
+
+router.delete('/deleteInternalPage/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+     
+        const internalPage = await prisma.internalPage.findUnique({
+            where: { id },
+            select: {
+                images: true,
+            }
+        });
+
+        if (internalPage && internalPage.images && internalPage.images.length > 0) {
+        
+            for (const imageUrl of internalPage.images) {
+                const imageKey = imageUrl.split('/').pop(); 
+                await deleteFileFromS3(imageKey); 
+            }
+        }
+
+        // Now delete the internal page from the database
+        await prisma.internalPage.delete({
+            where: { id }
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Internal Page and associated images deleted successfully'
+        });
+    } catch (error) {
+        console.error('Error deleting internal page:', error);
+        res.status(500).json({
+            success: false,
+            message: 'An error occurred while deleting the internal page',
+            error: error.message
+        });
+    }
+});
+
 
 module.exports = router;

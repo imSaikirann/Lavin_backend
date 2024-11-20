@@ -21,7 +21,7 @@ router.post('/auth/send-otp', async (req, res) => {
 
 
 router.post('/auth/verify-otp', async (req, res) => {
-    const { email, code, firstName, lastName, phoneNumber, address, street, city, state, country, pincode } = req.body;
+    const { email, code, firstName, lastName, phone, address, street, city, state, country, pinCode } = req.body;
 
     try {
         // Verify the OTP
@@ -43,13 +43,13 @@ router.post('/auth/verify-otp', async (req, res) => {
                     email,
                     firstName,
                     lastName,
-                    phoneNumber,
+                    phoneNumber:phone,
                     address,
                     street,
                     city,
                     state,
                     country,
-                    pincode,
+                    pincode:pinCode,
                     isVerified: true,
                     isTemporary: true,
                 },
