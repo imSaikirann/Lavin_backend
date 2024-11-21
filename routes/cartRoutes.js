@@ -15,7 +15,7 @@ router.post('/cart/sync', authenticateUser, async (req, res) => {
     try {
       
         let cart = await prisma.cart.findFirst({
-            where: { id:userId }, 
+            where: { userId:userId }, 
             include: { items: true },
         });
 
@@ -70,16 +70,17 @@ router.post('/cart/sync', authenticateUser, async (req, res) => {
 });
 
 router.delete('/cart/removeProduct', authenticateUser, async (req, res) => {
-    console.log(req.user)
+    console.log("delete",req.user)
     const userId = req.user.id;
     const {  productId, variantId } = req.body;
 
 
     try {
         const cart = await prisma.cart.findFirst({
-            where: { id: userId },
+            where: { userId: userId },
             include: { items: true },
         });
+        console.log(cart)
 
         if (!cart) {
             return res.status(404).json({ message: 'Cart not found' });
@@ -105,7 +106,8 @@ router.delete('/cart/removeProduct', authenticateUser, async (req, res) => {
 });
 
 router.post('/cart/addProduct', authenticateUser, async (req, res) => {
-    const userId = req.user.userId; 
+    const userId = req.user.id; 
+    console.log("add",req.user)
     
     const { productId, variant, variantIndex, quantity, productPrice, variantImage } = req.body;
 
@@ -171,7 +173,7 @@ router.patch('/cart/updateQuantity', authenticateUser, async (req, res) => {
 
     try {
         const cart = await prisma.cart.findFirst({
-            where: { id: userId },
+            where: { userId: userId },
             include: { items: true },
         });
 
@@ -200,8 +202,8 @@ router.patch('/cart/updateQuantity', authenticateUser, async (req, res) => {
 });
 
 router.get('/getCartItems', authenticateUser, async (req, res) => {
-    const userId = req.user.userId; 
-    console.log(req.user.userId)
+    const userId = req.user.id; 
+    console.log(req.user)
 
     try {
         const cart = await prisma.cart.findFirst({
