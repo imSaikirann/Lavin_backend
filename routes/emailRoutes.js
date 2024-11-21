@@ -61,7 +61,7 @@ router.post('/auth/verify-otp', async (req, res) => {
         await prisma.userEmailVerification.delete({ where: { email } });
 
         // Generate the access token
-        const accessToken = generateToken(user);
+        const accessToken = generateToken(user.id);
 
         // Respond with user details and access token
         res.status(201).json({

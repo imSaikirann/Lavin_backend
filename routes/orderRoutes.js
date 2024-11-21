@@ -202,7 +202,8 @@ router.get('/getAllOrders', async (req, res) => {
 
 // Route to create an order
 router.post('/create-order', authenticateUser, checkPincodeMiddleware, async (req, res) => {
-    const userId = req.user.userId;
+    console.log("hi",req.user)
+    const userId = req.user.id;
     const { address, phone, items } = req.body;
 
     if (!userId) {
@@ -333,6 +334,7 @@ router.post('/razorpay-webhook', async (req, res) => {
 
 // Route to place an order
 router.post('/placeOrder', authenticateUser, checkPincodeMiddleware, async (req, res) => {
+   
     const userId = req.user.userId;
 
     if (!userId) {

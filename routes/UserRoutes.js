@@ -85,13 +85,14 @@ router.post('/set-password', authenticateUser, async (req, res) => {
 
 // Profile
 router.get('/profile', authenticateUser, async (req, res) => {
+  console.log("profile",req.user)
   try {
     const user = await prisma.user.findUnique({
-      where: { email: req.user.email },
+      where: { id: req.user.id },
       include: {
         orders: {
           include: {
-            orderItems: true, // Include order items for each order
+            orderItems: true, 
           },
         },
       },
