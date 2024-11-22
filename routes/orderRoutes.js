@@ -185,20 +185,39 @@ const calculateTotalAmount = (items) => {
 };
 
 // Route to fetch all orders
-router.get('/getAllOrders', async (req, res) => {
+router.get('/getAllOrders/:productId', authenticateUser, async (req, res) => {
+    const userId = req.user.id;
+    const { productId } = req.params;
+
     try {
-        const orders = await prisma.order.findMany({
+        // Fetch orders for the specific user, with filtered orderItems
+        const data = await prisma.order.findMany({
+            where: {
+                userId: userId,
+            },
             include: {
-                orderItems: true,
-                user: true,
+                orderItems: {
+                    where: {
+                        productId: productId,
+                    },
+                },
             },
         });
-        res.json(orders);
+
+        // Check if any of the orders have orderItems with the given productId
+        const hasOrderItems = data.some(order => order.orderItems.length > 0);
+
+        if (hasOrderItems) {
+            res.json({ message: "Done", success: "true" });
+        } else {
+            res.json({ message: "Done", success: "false" });
+        }
     } catch (error) {
         console.error('Error fetching orders:', error);
         res.status(500).json({ error: 'An error occurred while fetching orders.' });
     }
 });
+
 
 // Route to create an order
 router.post('/create-order', authenticateUser, checkPincodeMiddleware, async (req, res) => {

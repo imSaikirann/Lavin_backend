@@ -12,6 +12,8 @@ const productSpecificationRoutes = require('./routes/productSpecification');
 const deliveryRoutes = require('./routes/deliveryRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const trafficRouter = require('./routes/trafficRoutes');
+const eventRouter = require('./routes/eventRoutes');
+
 
 
 
@@ -55,6 +57,8 @@ app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/specifications', productSpecificationRoutes);
 app.use('/api/v1/delivery', deliveryRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
+app.use('/api/v1/events', eventRouter);
+
 
 
 

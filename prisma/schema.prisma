@@ -168,3 +168,12 @@ model Traffic {
   visits  Int    @default(1)
   createdAt DateTime @default(now())
 }
+
+
+model Events {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  saleName        String    @unique
+  description     String
+  isSale          Boolean
+
+}

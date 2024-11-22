@@ -8,11 +8,11 @@ const prisma = new PrismaClient();
 router.post('/addReview/:id', async (req, res) => {
     const { id } = req.params; 
     const { comment, rating } = req.body;  
-    
+    console.log(req.body)
     try {
         const data = await prisma.review.create({
             data: { 
-                rating,
+                rating:parseInt(rating),
                 comment,
                 productId: id,
             }
@@ -24,6 +24,7 @@ router.post('/addReview/:id', async (req, res) => {
             data: data,
         });
     } catch (error) {
+        console.log(error)
         res.status(500).json({
             success: false,
             message: "An error occurred while adding review",
