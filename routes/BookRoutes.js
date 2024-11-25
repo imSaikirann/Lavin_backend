@@ -12,25 +12,45 @@ const productSchema = z.object({
     productName: z.string(),
     price: z.number(), // Change to expect a number (float)
     productDescription: z.string(),
-    offeredPrice: z.number().optional(), // offeredPrice is optional, so use optional()
-    categoryName: z.string(),
+    offeredPrice: z.number().optional(), 
+    categoryId :z.string()
   });
   
 
 // Add Product
 router.post('/addProduct', async (req, res) => {
-    console.log(req.body)
+    console.log(req.body);
     try {
+        // Validate the input data 
         const parsedData = productSchema.parse(req.body);
-        const { productName, price, productDescription, offeredPrice, categoryName } = parsedData;
+        const { productName, price, productDescription, offeredPrice, categoryId } = parsedData;
+        console.log(req.body)
+      
 
+        // Fetch category data
+        const categoryData = await prisma.productCategory.findUnique({
+            where: {
+                id: categoryId,
+            },
+        });
+
+        // Check if the category exists
+        if (!categoryData) {
+            return res.status(404).json({
+                success: false,
+                message: "Category not found.",
+            });
+        }
+
+        // Create the product
         const data = await prisma.product.create({
             data: {
                 productName,
                 price,
                 productDescription,
                 offeredPrice,
-                categoryName,
+                categoryId,
+                categoryName: categoryData.category,
             },
         });
 
@@ -67,9 +87,10 @@ router.get('/getProducts', async (req, res) => {
             data,
         });
     } catch (error) {
+        console.log(error)
         res.status(500).json({
             success: false,
-            message: "An error occurred while getting products",
+            message: "An error occurred while getting products", 
             error: error.message,
         });
     }
@@ -78,11 +99,18 @@ router.get('/getProducts', async (req, res) => {
 // Edit Product
 router.put('/editProduct/:id', async (req, res) => {
     const { id } = req.params;
-
+    console.log(req.body)
     try {
         const parsedData = productSchema.parse(req.body);
-        const { productName, price, productDescription, offeredPrice, categoryName } = parsedData;
+        const { productName, price, productDescription, offeredPrice,categoryId  } = parsedData;
 
+            // Fetch category data
+            const categoryData = await prisma.productCategory.findUnique({
+                where: {
+                    id: categoryId,
+                },
+            });
+    
         const data = await prisma.product.update({
             where: { id },
             data: {
@@ -90,7 +118,8 @@ router.put('/editProduct/:id', async (req, res) => {
                 price,
                 productDescription,
                 offeredPrice,
-                categoryName,
+                categoryId,
+                categoryName:categoryData.category,
             },
         });
 
@@ -100,6 +129,7 @@ router.put('/editProduct/:id', async (req, res) => {
             data,
         });
     } catch (error) {
+        console.log(error)
         res.status(500).json({
             success: false,
             message: "An error occurred while editing the product",
@@ -196,15 +226,15 @@ router.post('/addVariant/:productId', upload.array('files'), async (req, res) =>
             message: "An error occurred while adding the variant",
             error: error.message,
         });
-    }
+    } 
 });
 
 
 // Edit Variant
 router.put('/editVariant/:id', upload.array('files'), async (req, res) => {
     const { id } = req.params;
-    const { size, stock, color } = req.body;
-
+    const { size, stock, color } = req.body; 
+    console.log(req.body)
     try {
         let imageUrl = [];
 
@@ -263,6 +293,7 @@ router.delete('/deleteVariant/:id', async (req, res) => {
 // Add InternalPage
 router.post('/addInternalPage/:id', upload.array('images'), async (req, res) => {
     const {id} = req.params
+    console.log(id)
     try {
         const { pageType, pageCount } = req.body;
         let imagesUrl = [];
@@ -324,43 +355,12 @@ router.get('/getInternalPages', async (req, res) => {
     }
 });
 
-// Get Single InternalPage
-router.get('/getInternalPage/:id', async (req, res) => {
-    const { id } = req.params;
 
-    try {
-        const data = await prisma.internalPage.findUnique({
-            where: { id },
-            include: {
-                product: true 
-            }
-        });
-
-        if (!data) {
-            return res.status(404).json({
-                success: false,
-                message: 'Internal Page not found'
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            message: 'Internal Page fetched successfully',
-            data
-        });
-    } catch (error) {
-        console.error('Error fetching internal page:', error);
-        res.status(500).json({
-            success: false,
-            message: 'An error occurred while fetching the internal page',
-            error: error.message
-        });
-    }
-});
 
 
 router.put('/editInternalPage/:id', upload.array('images'), async (req, res) => {
     const { id } = req.params;
+    console.log(id)
     const { pageType, pageCount, productId } = req.body;
     let imagesUrl = [];
 
@@ -379,8 +379,8 @@ router.put('/editInternalPage/:id', upload.array('images'), async (req, res) => 
             data: {
                 pageType,
                 pageCount,
-                images: imagesUrl.length > 0 ? imagesUrl : undefined, 
-                product: { connect: { id: productId } }
+                images: imagesUrl.length > 0 ? imagesUrl : undefined
+              
             },
         });
 
@@ -438,5 +438,38 @@ router.delete('/deleteInternalPage/:id', async (req, res) => {
     }
 });
 
+// Get Single InternalPage
+router.get('/getInternalPage/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const data = await prisma.product.findUnique({
+            where: { id },
+            include: {
+                internalPages:true
+            }
+        });
+
+        if (!data) {
+            return res.status(404).json({
+                success: false,
+                message: 'Internal Page not found'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Internal Page fetched successfully',
+            data
+        });
+    } catch (error) {
+        console.error('Error fetching internal page:', error);
+        res.status(500).json({
+            success: false,
+            message: 'An error occurred while fetching the internal page',
+            error: error.message
+        });
+    }
+});
 
 module.exports = router;

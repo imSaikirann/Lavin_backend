@@ -218,6 +218,44 @@ router.get('/getAllOrders/:productId', authenticateUser, async (req, res) => {
     }
 });
 
+router.get('/getAllOrders', async (req, res) => {
+    try {
+      // Fetch all orders with their order items
+      const orders = await prisma.order.findMany({
+        include: {
+          orderItems: true,
+        },
+      });
+  
+      // Fetch user data for each order
+      const ordersWithUserData = await Promise.all(
+        orders.map(async (order) => {
+          const userData = await prisma.user.findFirst({
+            where: {
+              id: order.userId, 
+            },
+            select: {
+              firstName: true,
+            },
+          });
+          console.log(userData)
+  
+          // Combine order and user data
+          return {
+            ...order,
+            user: userData  
+          };
+        })
+      );
+  
+      // Send the combined data as a response
+      res.status(200).json(ordersWithUserData);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      res.status(500).json({ error: 'An error occurred while fetching orders.' });
+    }
+  });
+  
 
 // Route to create an order
 router.post('/create-order', authenticateUser, checkPincodeMiddleware, async (req, res) => {

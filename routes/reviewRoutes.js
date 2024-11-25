@@ -1,23 +1,69 @@
 const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
-
+const authenticateUser = require('../middleware/userMiddleware')
 const prisma = new PrismaClient();
 
 // Create a new review
-router.post('/addReview/:id', async (req, res) => {
+router.post('/addReview/:id',  authenticateUser, async (req, res) => {
     const { id } = req.params; 
+    const userId = req.user.id
     const { comment, rating } = req.body;  
-    console.log(req.body)
+    console.log("here",req.user)
     try {
+
+        const userName = await prisma.user.findFirst({
+            where: {
+                id: userId
+            },
+            select: {
+                firstName: true
+            }
+        });
+        
+        console.log(userName)
         const data = await prisma.review.create({
             data: { 
+                userName:userName.firstName,
                 rating:parseInt(rating),
                 comment,
                 productId: id,
             }
         });
+        console.log(data)
+        res.status(201).json({
+            success: true,
+            message: "Review added successfully",
+            data: data,
+        });
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({
+            success: false,
+            message: "An error occurred while adding review",
+            error: error.message,
+        });
+    }
+});
 
+router.post('/addReviews/:id',   async (req, res) => {
+    
+    const { id } = req.params; 
+    const { comment, rating ,userName} = req.body;  
+  
+    try {
+
+      
+       
+        const data = await prisma.review.create({
+            data: { 
+                userName,
+                rating:parseInt(rating),
+                comment,
+                productId: id,
+            }
+        });
+      
         res.status(201).json({
             success: true,
             message: "Review added successfully",

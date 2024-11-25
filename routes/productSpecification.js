@@ -52,9 +52,36 @@ router.get('/getProductSpecification/:id', async (req, res) => {
     const { id } = req.params;  
 
     try {
+        
+        const specification = await prisma.product.findUnique({
+            where: {  id },
+            include:{
+                specifications:true
+            }
+
+        });
+        console.log(specification)
+        // Send the product specification data as the response
+        res.status(200).json({
+            success: true,
+            data: specification,
+        });
+    } catch (error) {
+        console.error("Error fetching product specification:", error);  // For debugging
+        res.status(500).json({
+            success: false,
+            message: "An error occurred while fetching the product specification",
+            error: error.message,
+        });
+    }
+}); 
+router.get('/getSpec/:id', async (req, res) => {
+    const { id } = req.params;  
+
+    try {
         // Fetch the product specification from the database by its unique ID
         const specification = await prisma.productSpecification.findUnique({
-            where: { id: id }, // Make sure the ID is in the correct format (integer)
+            where: { id: id },
         });
 
         if (!specification) {
@@ -91,12 +118,13 @@ router.put('/editProductSpecification/:id', async (req, res) => {
         manufacturer, 
         warrantyPeriod 
     } = req.body;
-
+    console.log(id)
     try {
-        // Check if the product specification exists
+     
         const existingSpec = await prisma.productSpecification.findUnique({
-            where: { id }, // Using 'id' for the specification unique ID
+            where: { id }, 
         });
+        console.log(existingSpec)
 
         if (!existingSpec) {
             return res.status(404).json({
