@@ -50,7 +50,8 @@ router.post('/addReviews/:id',   async (req, res) => {
     
     const { id } = req.params; 
     const { comment, rating ,userName} = req.body;  
-  
+
+console.log(req.body)
     try {
 
       

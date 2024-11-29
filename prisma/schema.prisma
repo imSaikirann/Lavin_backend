@@ -175,9 +175,15 @@ model Traffic {
 
 
 model Events {
-  id              String    @id @default(auto()) @map("_id") @db.ObjectId
-  saleName        String    @unique
-  description     String
-  isSale          Boolean
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  saleName    String  @unique
+  description String
+  isSale      Boolean
+  imageUrl    String  
+}
 
+model admin {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  email String @unique
+  password String
 }

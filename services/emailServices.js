@@ -3,7 +3,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const crypto = require('crypto');
 
-const transporter = nodemailer.createTransport({
+const transporter = nodemailer.createTransport({ 
     service: 'gmail',
     auth: {
         user: process.env.EMAIL,

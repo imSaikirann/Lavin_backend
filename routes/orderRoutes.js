@@ -19,6 +19,7 @@ const DELHIVERY_API_KEY = process.env.DELHIVERY_API_KEY;
 
 // Function to check pincode availability
 async function checkPincodeAvailability(pincode) {
+    console.log(pincode)
     try {
         const response = await axios.get(`https://track.delhivery.com/c/api/pin-codes/json/?filter_codes=${pincode}`, {
             headers: {
@@ -143,27 +144,27 @@ const createShipment = async (order) => {
             })) || [], 
             total_weight: totalWeight || 0, 
             total_value: calculateTotalAmount(items) || 0, 
-            end_date: "2024-11-16", 
+            end_date: null, 
         };
 
         console.log('Shipment Details:', shipmentDetails);
 
-        // Make the request to Delhivery API
+      
         const response = await axios.post(
             'https://staging-express.delhivery.com/api/cmu/create.json',
             {
                 format: 'json',
-                data: JSON.stringify(shipmentDetails), // Ensure shipment details are stringified
+                data: JSON.stringify(shipmentDetails), 
             },
             {
                 headers: {
-                    Authorization: `Bearer ${DELHIVERY_API_KEY}`, // Ensure DELHIVERY_API_KEY is set correctly
+                    Authorization: `Bearer ${DELHIVERY_API_KEY}`, 
                     'Content-Type': 'application/json',
                 },
             }
         );
 
-        // Handle response
+      
         if (response.data && response.data.success) {
             console.log('Shipment Created Successfully:', response.data);
             return { status: 'success', trackingId: response.data.tracking_id };
@@ -259,7 +260,7 @@ router.get('/getAllOrders', async (req, res) => {
 
 // Route to create an order
 router.post('/create-order', authenticateUser, checkPincodeMiddleware, async (req, res) => {
-    console.log("hi",req.user)
+   
     const userId = req.user.id;
     const { address, phone, items } = req.body;
 
@@ -273,10 +274,10 @@ router.post('/create-order', authenticateUser, checkPincodeMiddleware, async (re
         const totalWeight = await calculateTotalWeight(items);
         const originPin = '500073';
         const shippingCharges = await getShippingCost(address.pinCode, originPin, totalWeight);
-        console.log(shippingCharges);
+      
 
         totalAmount += shippingCharges;
-        console.log(totalAmount);
+
 
 
         const razorpayOrder = await razorpayInstance.orders.create({
@@ -392,7 +393,8 @@ router.post('/razorpay-webhook', async (req, res) => {
 // Route to place an order
 router.post('/placeOrder', authenticateUser, checkPincodeMiddleware, async (req, res) => {
    
-    const userId = req.user.userId;
+    const userId = req.user.id;
+    
 
     if (!userId) {
         return res.status(400).json({ error: 'User ID is required.' });
